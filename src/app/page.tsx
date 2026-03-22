@@ -17,7 +17,7 @@ export default function ScribUp() {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -25,13 +25,13 @@ export default function ScribUp() {
   const [lastCid, setLastCid] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userProjects, setUserProjects] = useState([]);
-  const chatEndRef = useRef(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const agents = {
     novelist: { name: "Le Romancier", icon: <Book className="w-4 h-4" />, color: "#00f2ff", desc: "Narratologie & Style" },
-    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & Métrique" },
-    screenwriter: { name: "Le Scénariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
-    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & Étymologie" }
+    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & MÃ©trique" },
+    screenwriter: { name: "Le ScÃ©nariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
+    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & Ã‰tymologie" }
   };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isLoading]);
@@ -77,7 +77,7 @@ export default function ScribUp() {
     } catch (error) { console.error(error); } finally { setIsSaving(false); }
   };
 
-  const handleDeleteProject = async (id, e) => {
+  const handleDeleteProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Supprimer ?")) return;
     try {
@@ -86,7 +86,7 @@ export default function ScribUp() {
     } catch (error) { console.error(error); }
   };
 
-  const handleEditTitle = async (id, currentTitle, e) => {
+  const handleEditTitle = async (id: string, currentTitle: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const newTitle = prompt("Nouveau titre :", currentTitle);
     if (!newTitle) return;
@@ -151,7 +151,7 @@ export default function ScribUp() {
            </div>
         </header>
         <div className="flex-1 relative">
-           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensées..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
+           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensÃ©es..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
         </div>
       </main>
 
@@ -173,7 +173,7 @@ export default function ScribUp() {
             </div>
          </div>
       </aside>
-      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">Sauvegardé</div>}
+      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">SauvegardÃ©</div>}
     </div>
   );
 }

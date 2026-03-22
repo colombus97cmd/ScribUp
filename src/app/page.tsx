@@ -12,7 +12,7 @@ import { uploadTextToIPFS } from "@/services/pinata";
 
 export default function ScribUp() {
   const { isConnected, address } = useAccount();
-  const [activeAgent, setActiveAgent] = useState("novelist");
+  const [activeAgent, setActiveAgent] = useState<keyof typeof agents>("novelist");
   const [textContent, setTextContent] = useState("");
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -27,11 +27,11 @@ export default function ScribUp() {
   const [userProjects, setUserProjects] = useState<any[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const agents = {
+  const agents: Record<string, {name: string, icon: any, color: string, desc: string}> = {
     novelist: { name: "Le Romancier", icon: <Book className="w-4 h-4" />, color: "#00f2ff", desc: "Narratologie & Style" },
-    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & MÃƒÂ©trique" },
-    screenwriter: { name: "Le ScÃƒÂ©nariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
-    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & Ãƒâ€°tymologie" }
+    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & MÃƒÆ’Ã‚Â©trique" },
+    screenwriter: { name: "Le ScÃƒÆ’Ã‚Â©nariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
+    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & ÃƒÆ’Ã¢â‚¬Â°tymologie" }
   };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isLoading]);
@@ -143,7 +143,7 @@ export default function ScribUp() {
            <div className="flex items-center gap-4">
               <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-3 bg-white/5 rounded-xl"><Menu className="w-4 h-4" /></button>
               <button onClick={() => setIsFocusMode(!isFocusMode)} className="hidden md:block p-3 bg-white/5 rounded-xl">{isFocusMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
-              <h2 className="text-[10px] uppercase text-gray-500 tracking-widest">Brouillon / <span className="text-[#00f2ff]">{agents[activeAgent].name}</span></h2>
+              <h2 className="text-[10px] uppercase text-gray-500 tracking-widest">Brouillon / <span className="text-[#00f2ff]">{(agents[activeAgent] as any)?.name}</span></h2>
            </div>
            <div className="flex gap-2">
              <button onClick={handleRailwaySave} disabled={isSaving || !address} className="px-4 py-2 bg-[#00f2ff] text-black text-[9px] font-black uppercase rounded-lg hover:bg-white transition-all disabled:opacity-30">Save Cloud</button>
@@ -151,7 +151,7 @@ export default function ScribUp() {
            </div>
         </header>
         <div className="flex-1 relative">
-           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensÃƒÂ©es..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
+           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensÃƒÆ’Ã‚Â©es..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
         </div>
       </main>
 
@@ -173,7 +173,7 @@ export default function ScribUp() {
             </div>
          </div>
       </aside>
-      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">SauvegardÃƒÂ©</div>}
+      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">SauvegardÃƒÆ’Ã‚Â©</div>}
     </div>
   );
 }

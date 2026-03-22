@@ -1,4 +1,4 @@
-﻿import { PinataSDK } from "pinata-web3";
+import { PinataSDK } from "pinata-web3";
 
 const pinata = new PinataSDK({
   pinataJwt: process.env.NEXT_PUBLIC_PINATA_JWT || "",
@@ -10,7 +10,7 @@ export const uploadTextToIPFS = async (text: string, title: string) => {
     const blob = new Blob([text], { type: "text/plain" });
     const file = new File([blob], `${title}.txt`, { type: "text/plain" });
     const upload = await pinata.upload.file(file);
-    return upload.cid;
+    return (upload as any).IpfsHash || (upload as any).cid;
   } catch (error) {
     console.error("Error uploading to IPFS:", error);
     throw error;

@@ -1,4 +1,5 @@
-﻿import { useState, useRef, useEffect } from "react";
+"use client";
+import { useState, useRef, useEffect } from "react";
 import { ConnectKitButton } from "connectkit";
 import { useAccount } from "wagmi";
 import { 

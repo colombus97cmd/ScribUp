@@ -9,7 +9,7 @@
                     "lint":  "eslint"
                 },
     "dependencies":  {
-                         "@prisma/client":  "^7.5.0",
+                         "@prisma/client": "^6.2.1",
                          "@tanstack/react-query":  "^5.90.21",
                          "connectkit":  "^1.9.1",
                          "lucide-react":  "^0.577.0",
@@ -28,7 +28,7 @@
                             "babel-plugin-react-compiler":  "1.0.0",
                             "eslint":  "^9",
                             "eslint-config-next":  "16.1.7",
-                            "prisma":  "^7.5.0",
+                            "prisma": "^6.2.1",
                             "tailwindcss":  "^4",
                             "typescript":  "^5"
                         },

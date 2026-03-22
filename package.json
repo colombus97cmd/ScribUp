@@ -1,4 +1,4 @@
-{
+﻿{
     "name":  "scrib_up",
     "version":  "0.1.0",
     "private":  true,
@@ -32,7 +32,7 @@
                             "tailwindcss":  "^4",
                             "typescript":  "^5"
                         },
-    "engines":  {
-                    "node":  "\u003e=18"
-                }
+    "engines": { "node": ">=22" }
 }
+
+

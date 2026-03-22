@@ -1,19 +1,18 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Project {
   id        String   @id @default(uuid())
-  userId    String   // Adresse wallet de l'utilisateur
+  userId    String
   title     String   @default("Sans titre")
   content   String   @db.Text
-  agent     String   // novelist, lyricist, screenwriter, linguist
-  cid       String?  // Optionnel : CID Pinata si sauvegardÃ© sur IPFS
+  agent     String
+  cid       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

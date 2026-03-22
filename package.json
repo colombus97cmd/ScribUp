@@ -1,35 +1,38 @@
 {
-  "name": "scrib_up",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@prisma/client": "^7.5.0",
-    "@tanstack/react-query": "^5.90.21",
-    "connectkit": "^1.9.1",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "pinata-web3": "^0.5.4",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "viem": "^2.47.4",
-    "wagmi": "^3.5.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.7",
-    "prisma": "^7.5.0",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+    "name":  "scrib_up",
+    "version":  "0.1.0",
+    "private":  true,
+    "scripts":  {
+                    "dev":  "next dev",
+                    "build":  "npx prisma generate \u0026\u0026 next build",
+                    "start":  "next start",
+                    "lint":  "eslint"
+                },
+    "dependencies":  {
+                         "@prisma/client":  "^7.5.0",
+                         "@tanstack/react-query":  "^5.90.21",
+                         "connectkit":  "^1.9.1",
+                         "lucide-react":  "^0.577.0",
+                         "next":  "16.1.7",
+                         "pinata-web3":  "^0.5.4",
+                         "react":  "19.2.3",
+                         "react-dom":  "19.2.3",
+                         "viem":  "^2.47.4",
+                         "wagmi":  "^3.5.0"
+                     },
+    "devDependencies":  {
+                            "@tailwindcss/postcss":  "^4",
+                            "@types/node":  "^20",
+                            "@types/react":  "^19",
+                            "@types/react-dom":  "^19",
+                            "babel-plugin-react-compiler":  "1.0.0",
+                            "eslint":  "^9",
+                            "eslint-config-next":  "16.1.7",
+                            "prisma":  "^7.5.0",
+                            "tailwindcss":  "^4",
+                            "typescript":  "^5"
+                        },
+    "engines":  {
+                    "node":  "\u003e=18"
+                }
 }

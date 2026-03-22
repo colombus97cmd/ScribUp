@@ -17,7 +17,7 @@ export default function ScribUp() {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
+  const [activeModel, setActiveModel] = useState("openai/gpt-3.5-turbo");`n  const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -29,9 +29,9 @@ export default function ScribUp() {
 
   const agents: Record<string, {name: string, icon: any, color: string, desc: string}> = {
     novelist: { name: "Le Romancier", icon: <Book className="w-4 h-4" />, color: "#00f2ff", desc: "Narratologie & Style" },
-    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & MÃƒÆ’Ã‚Â©trique" },
-    screenwriter: { name: "Le ScÃƒÆ’Ã‚Â©nariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
-    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & ÃƒÆ’Ã¢â‚¬Â°tymologie" }
+    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©trique" },
+    screenwriter: { name: "Le ScÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©nariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
+    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â°tymologie" }
   };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isLoading]);
@@ -57,7 +57,7 @@ export default function ScribUp() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg, agent: activeAgent, context: textContent.slice(-1000) }),      
+        body: JSON.stringify({ message: userMsg, agent: activeAgent, model: activeModel, context: textContent.slice(-1000) }),      
       });
       const data = await response.json();
       setMessages(prev => [...prev, { role: "ai", text: data.text }]);
@@ -151,12 +151,24 @@ export default function ScribUp() {
            </div>
         </header>
         <div className="flex-1 relative">
-           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensÃƒÆ’Ã‚Â©es..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
+           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©es..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
         </div>
       </main>
 
       <aside className={`fixed md:relative inset-y-0 right-0 z-50 w-80 border-l border-white/5 bg-black/90 flex flex-col transform transition-transform ${isAiOpen ? "translate-x-0" : "translate-x-full"} md:translate-x-0`}>
-         <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                  <div className="px-6 py-2 border-b border-white/5 bg-white/5 flex items-center justify-between">
+            <span className="text-[8px] font-black uppercase text-gray-500">Modèle</span>
+            <select 
+              value={activeModel} 
+              onChange={(e) => setActiveModel(e.target.value)}
+              className="bg-transparent text-[8px] font-black uppercase outline-none text-[#00f2ff] cursor-pointer"
+            >
+              <option value="openai/gpt-3.5-turbo" className="bg-black">GPT-3.5 Turbo</option>
+              <option value="openai/gpt-4o" className="bg-black">GPT-4o</option>
+              <option value="anthropic/claude-3.5-sonnet" className="bg-black">Claude 3.5</option>
+              <option value="meta-llama/llama-3.1-70b-instruct" className="bg-black">Llama 3.1</option>
+            </select>
+         </div>`n         <div className="p-6 border-b border-white/5 flex justify-between items-center">
             <h3 className="text-[10px] font-black uppercase tracking-widest">IA Mentor</h3>
             <button onClick={() => setIsAiOpen(false)} className="md:hidden"><X className="w-4 h-4" /></button>
          </div>
@@ -173,7 +185,7 @@ export default function ScribUp() {
             </div>
          </div>
       </aside>
-      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">SauvegardÃƒÆ’Ã‚Â©</div>}
+      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">SauvegardÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©</div>}
     </div>
   );
 }

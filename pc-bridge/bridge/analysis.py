@@ -28,6 +28,7 @@ MAJOR_PROFILE = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 
 MINOR_PROFILE = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
 
 SILENCE_DB = -55.0
+KEY_SWITCH_MARGIN = 0.08  # écart de corrélation exigé pour changer de tonalité (évite le va-et-vient majeur/relatif)
 
 
 HARMONICS = [(1, 1.0), (2, 0.7), (3, 0.5), (4, 0.35), (5, 0.25), (6, 0.18)]
@@ -91,6 +92,11 @@ def detect_key(chroma: np.ndarray) -> tuple[int | None, str, float]:
     return best
 
 
+def key_score(chroma: np.ndarray, tonic: int, mode: str) -> float:
+    profile = MINOR_PROFILE if mode == "minor" else MAJOR_PROFILE
+    return float(np.corrcoef(np.roll(chroma, -tonic), profile)[0, 1])
+
+
 def key_name(tonic: int | None, mode: str) -> str | None:
     if tonic is None:
         return None
@@ -121,6 +127,7 @@ class HarmonyAnalyzer:
         self.bass = np.zeros(12)
         self.long_chroma = np.zeros(12)  # notes des accords, lissé long terme -> tonalité
         self.level_db = -120.0
+        self._key: tuple[int, str] | None = None
         self._accum = np.zeros(12)       # somme pondérée depuis le dernier take_accumulated()
 
     @staticmethod
@@ -181,6 +188,18 @@ class HarmonyAnalyzer:
     def reset_key(self) -> None:
         with self._lock:
             self.long_chroma = np.zeros(12)
+            self._key = None
+
+    def _stable_key(self, long_chroma: np.ndarray) -> tuple[int | None, str, float]:
+        tonic, mode, conf = detect_key(long_chroma)
+        if tonic is None:
+            return tonic, mode, conf
+        if self._key is not None and (tonic, mode) != self._key:
+            current = key_score(long_chroma, *self._key)
+            if conf - current < KEY_SWITCH_MARGIN:
+                tonic, mode, conf = self._key[0], self._key[1], current
+        self._key = (tonic, mode)
+        return tonic, mode, conf
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -195,7 +214,7 @@ class HarmonyAnalyzer:
             root = NOTE_NAMES[CHORD_ROOTS[CHORD_NAMES.index(chord)]]
             if bass_note != root:
                 chord = f"{chord}/{bass_note}"
-        tonic, mode, kconf = detect_key(long_chroma)
+        tonic, mode, kconf = self._stable_key(long_chroma)
         return {
             "active": bool(active),
             "level": round(level, 1),

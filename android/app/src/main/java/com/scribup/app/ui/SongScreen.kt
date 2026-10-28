@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.scribup.app.MainViewModel
+import com.scribup.app.ui.theme.Dim
 
 private val TABS = listOf("Écrire", "Live", "Claude", "Accords")
 
@@ -55,7 +56,12 @@ fun SongScreen(vm: MainViewModel, onBack: () -> Unit, onSettings: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
             PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
                 TABS.forEachIndexed { i, label ->
-                    Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) })
+                    Tab(
+                        selected = tab == i,
+                        onClick = { tab = i },
+                        text = { Text(label, maxLines = 1, softWrap = false) },
+                        unselectedContentColor = Dim,
+                    )
                 }
             }
             when (tab) {

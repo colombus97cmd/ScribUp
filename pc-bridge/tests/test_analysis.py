@@ -54,6 +54,19 @@ def test_key_detection_on_progression(progression, expected):
     assert key_name(tonic, mode) in expected
 
 
+def test_key_does_not_flip_between_relatives():
+    # Am-F-C-G est ambigu (La mineur / Do majeur) : une fois choisie, la tonalité ne doit plus osciller.
+    analyzer = HarmonyAnalyzer(samplerate=SR)
+    keys = set()
+    for loop in range(5):
+        for chord in ["Am", "F", "C", "G"]:
+            feed(analyzer, render_chord(chord, 2.0, SR))
+            snap = analyzer.snapshot()
+            if loop >= 2:
+                keys.add(snap["key"])
+    assert len(keys) == 1 and keys <= {"A minor", "C major"}, keys
+
+
 def test_bar_grid_accumulates():
     analyzer = HarmonyAnalyzer(samplerate=SR)
     grid = BarGrid()

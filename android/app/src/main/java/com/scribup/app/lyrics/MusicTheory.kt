@@ -15,6 +15,9 @@ object MusicTheory {
 
     data class Key(val tonic: Int, val minor: Boolean) {
         fun name(latin: Boolean) = noteName(tonic, latin) + if (minor) " mineur" else " majeur"
+
+        /** Tonalité relative (mêmes notes) : La mineur <-> Do majeur. */
+        val relative: Key get() = if (minor) Key((tonic + 3) % 12, false) else Key((tonic + 9) % 12, true)
     }
 
     data class Diatonic(val degree: String, val chord: String)

@@ -74,11 +74,15 @@ fun ChordsTab(vm: MainViewModel, song: Song, onAskClaude: (String) -> Unit) {
                 ChromaBars(audio.chroma, latin)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val detected = audio.key?.let { MusicTheory.parseKey(it) }
-                    Text(
-                        "Tonalité détectée : " + (detected?.name(latin) ?: "—") +
-                            (if (detected != null) " (${(audio.keyConf * 100).toInt()} %)" else ""),
-                        Modifier.weight(1f),
-                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Tonalité détectée : " + (detected?.name(latin) ?: "—") +
+                                (if (detected != null) " (${(audio.keyConf * 100).toInt()} %)" else ""),
+                        )
+                        detected?.let {
+                            Text("ou son relatif ${it.relative.name(latin)} (mêmes notes)", color = Dim, fontSize = 12.sp)
+                        }
+                    }
                     TextButton(onClick = { vm.bridge.resetKey() }) { Text("Réinit.") }
                 }
                 if (audio.key != null) {

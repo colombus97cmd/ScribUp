@@ -44,6 +44,16 @@ import com.scribup.app.MainViewModel
 import com.scribup.app.data.Song
 import com.scribup.app.lyrics.LyricsParser
 import com.scribup.app.ui.theme.Dim
+import com.scribup.app.ui.theme.Accent
+import com.scribup.app.ui.theme.Accent2
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 
 private val SNIPPETS = listOf(
     "[Couplet]" to "\n[Couplet]\n",
@@ -118,6 +128,7 @@ fun EditorTab(vm: MainViewModel, song: Song) {
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 8.dp),
             textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace, fontSize = 16.sp, lineHeight = 24.sp),
             placeholder = { Text("Écris tes paroles…") },
+            visualTransformation = LyricsHighlighter,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
@@ -196,3 +207,38 @@ private fun SongInfo(vm: MainViewModel, song: Song) {
 }
 
 fun formatBars(bars: Double): String = if (bars % 1.0 == 0.0) bars.toInt().toString() else bars.toString()
+
+/** Colore la syntaxe ScribUp sans modifier le texte : sections, ad-libs, @mesure, ~durée, commentaires. */
+private object LyricsHighlighter : VisualTransformation {
+    private val section = SpanStyle(color = Accent2, fontWeight = FontWeight.Bold)
+    private val adlib = SpanStyle(color = Accent, fontStyle = FontStyle.Italic)
+    private val marker = SpanStyle(color = Accent2)
+    private val comment = SpanStyle(color = Dim, fontStyle = FontStyle.Italic)
+    private val markerRegex = Regex("""^@\s*\d+(?:[.,]\d+)?|\s~\s*\d+(?:[.,]\d+)?$""")
+
+    override fun filter(text: AnnotatedString): TransformedText {
+        val styled = buildAnnotatedString {
+            append(text.text)
+            var offset = 0
+            for (line in text.text.split('\n')) {
+                val trimmed = line.trim()
+                when {
+                    trimmed.startsWith("[") && trimmed.endsWith("]") -> addStyle(section, offset, offset + line.length)
+                    trimmed.startsWith("//") -> addStyle(comment, offset, offset + line.length)
+                    else -> {
+                        var depth = 0
+                        var start = 0
+                        line.forEachIndexed { i, c ->
+                            if (c == '(') { if (depth == 0) start = i; depth++ }
+                            if (c == ')' && depth > 0) { depth--; if (depth == 0) addStyle(adlib, offset + start, offset + i + 1) }
+                        }
+                        if (depth > 0) addStyle(adlib, offset + start, offset + line.length)
+                        markerRegex.findAll(line).forEach { addStyle(marker, offset + it.range.first, offset + it.range.last + 1) }
+                    }
+                }
+                offset += line.length + 1
+            }
+        }
+        return TransformedText(styled, OffsetMapping.Identity)
+    }
+}

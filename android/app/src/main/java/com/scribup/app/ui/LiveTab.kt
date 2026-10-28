@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -222,7 +223,10 @@ fun LiveTab(vm: MainViewModel, song: Song) {
                 Icon(Icons.Default.Replay, "Reprendre la section")
             }
             Spacer(Modifier.weight(1f))
-            FilterChip(selected = follow, onClick = { follow = !follow }, label = { Text("Suivi") })
+            IconButton(
+                onClick = { follow = !follow },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = if (follow) Accent else Dim),
+            ) { Icon(Icons.Default.MyLocation, if (follow) "Suivi automatique activé" else "Suivi automatique désactivé") }
         }
 
         if (parsed.sections.isNotEmpty()) {

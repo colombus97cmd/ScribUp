@@ -20,6 +20,12 @@ class MusicTheoryTest {
     }
 
     @Test
+    fun relativeKeys() {
+        assertEquals(MusicTheory.Key(0, false), MusicTheory.Key(9, true).relative)
+        assertEquals(MusicTheory.Key(4, true), MusicTheory.Key(7, false).relative)
+    }
+
+    @Test
     fun latinChordDisplay() {
         assertEquals("Fa#m7/La", MusicTheory.displayChord("F#m7/A", latin = true))
         assertEquals("Sibmaj7", MusicTheory.displayChord("Bbmaj7", latin = true))

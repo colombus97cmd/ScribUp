@@ -12,6 +12,11 @@ on:
       - "pc-bridge/**"
       - ".github/workflows/android.yml"
   workflow_dispatch:
+    inputs:
+      preview:
+        description: "Afficher les captures d'écran (réduites, base64) dans le journal"
+        type: boolean
+        default: false
 
 jobs:
   pc-bridge:
@@ -77,6 +82,21 @@ jobs:
           script: |
             ./gradlew --no-daemon connectedDebugAndroidTest
             adb pull /sdcard/Pictures/ScribUp ../screenshots || true
+      - name: Aperçu des captures dans le journal
+        if: inputs.preview
+        run: |
+          pip install pillow
+          python - <<'PY'
+          import base64, io, pathlib
+          from PIL import Image
+          for png in sorted(pathlib.Path("screenshots").glob("*.png")):
+              img = Image.open(png).convert("RGB")
+              img.thumbnail((380, 900))
+              buf = io.BytesIO()
+              img.save(buf, "JPEG", quality=55)
+              print(f"=== {png.name} ===")
+              print(base64.b64encode(buf.getvalue()).decode())
+          PY
       - name: Journal du pont
         if: always()
         run: cat bridge.log || true

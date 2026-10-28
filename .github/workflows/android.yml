@@ -55,6 +55,13 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pont PC en mode démo (joignable depuis l'émulateur en 10.0.2.2)
+        run: |
+          pip install numpy "websockets>=13"
+          nohup python pc-bridge/scribup_bridge.py --demo --pin 4242 > bridge.log 2>&1 &
       - name: Activer KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -67,4 +74,15 @@ jobs:
           target: google_apis
           disable-animations: true
           working-directory: android
-          script: ./gradlew --no-daemon connectedDebugAndroidTest
+          script: |
+            ./gradlew --no-daemon connectedDebugAndroidTest
+            adb pull /sdcard/Pictures/ScribUp ../screenshots || true
+      - name: Journal du pont
+        if: always()
+        run: cat bridge.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scribup-screenshots
+          path: screenshots/
+          if-no-files-found: ignore

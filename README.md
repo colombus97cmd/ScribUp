@@ -1,3 +1,26 @@
+# ScribUp
+
+Outils d'écriture rap / chant avec Claude.
+
+| Dossier | Contenu |
+|---|---|
+| [`android/`](android/README.md) | **App Android perso** : écriture multilingue avec Claude, mode Live synchronisé sur FL Studio (paroles, ad-libs, mesures), accords et tonalité en direct |
+| [`pc-bridge/`](pc-bridge/README.md) | **Pont PC** : script MIDI FL Studio + compagnon Python qui écoute le son du PC (accords, tonalité, grille par mesure) et parle au téléphone par le Wi-Fi |
+| `src/` | Application web Next.js (version web d'origine) |
+
+## Démarrage rapide (app + FL Studio)
+
+1. Récupère l'APK : onglet **Actions** de GitHub → dernier run vert → artefact `scribup-apk` → installe-le sur ton téléphone.
+2. Dans l'app : ⚙ Réglages → colle ta clé API Claude.
+3. Sur le PC : suis [`pc-bridge/README.md`](pc-bridge/README.md) (loopMIDI + script FL + `start_bridge.bat`).
+4. Dans l'app : Réglages → PC trouvé (ou IP) + PIN → Connecter. Ouvre un morceau → onglet **Live** et lance la lecture dans FL.
+
+Pour tester sans FL Studio : `python scribup_bridge.py --demo`.
+
+---
+
+## Application web (Next.js)
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

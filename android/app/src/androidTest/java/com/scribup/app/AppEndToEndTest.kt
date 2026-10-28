@@ -48,9 +48,11 @@ class AppEndToEndTest {
 
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.onNodeWithText("Nuit blanche").performClick()
+            compose.waitForIdle()
             // L'écran Live s'anime en continu pendant la lecture : on avance l'horloge de Compose à la main.
             compose.mainClock.autoAdvance = false
             compose.onNodeWithText("Live").performClick()
+            pump(500)
             // Le badge passe à « FL » quand le pont (simulateur FL) est connecté
             pumpUntil(20_000) { compose.onAllNodesWithText("FL").fetchSemanticsNodes().isNotEmpty() }
             // Toucher une section envoie « aller à la mesure » au simulateur FL

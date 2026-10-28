@@ -89,6 +89,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         persist(updated, immediate = false)
     }
 
+    /** Modifie un morceau précis, même s'il n'est plus ouvert (réponse de Claude arrivée après coup). */
+    private fun updateById(id: String, transform: (Song) -> Song) {
+        if (_current.value?.id == id) return update(transform)
+        val song = _songs.value.firstOrNull { it.id == id } ?: return
+        persist(transform(song).copy(updatedAt = System.currentTimeMillis()), immediate = true)
+    }
+
     private fun persist(song: Song, immediate: Boolean) {
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
@@ -145,7 +152,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
         val myRequest = ++requestId
         askJob = viewModelScope.launch {
-            val history = _current.value?.chat ?: return@launch
+            val history = _current.value?.takeIf { it.id == song.id }?.chat ?: return@launch
             val result = assistant.reply(s.apiKey, s.model, history) { partial ->
                 if (myRequest == requestId) _streaming.value = partial
             }
@@ -154,16 +161,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _streaming.value = null
             when (result) {
                 is ClaudeAssistant.Result.Done -> if (answer.isNotBlank()) {
-                    update { it.copy(chat = it.chat + ChatMessage(role = "assistant", text = answer)) }
+                    updateById(song.id) { it.copy(chat = it.chat + ChatMessage(role = "assistant", text = answer)) }
                 } else {
-                    dropLastUserMessage(userMessage)
+                    dropLastUserMessage(song.id, userMessage)
                 }
                 is ClaudeAssistant.Result.Refused -> {
-                    dropLastUserMessage(userMessage)
+                    dropLastUserMessage(song.id, userMessage)
                     _assistantError.value = result.reason
                 }
                 is ClaudeAssistant.Result.Failed -> {
-                    dropLastUserMessage(userMessage)
+                    dropLastUserMessage(song.id, userMessage)
                     _assistantError.value = result.message
                 }
             }
@@ -171,7 +178,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Une question sans réponse est retirée, pour que l'historique reste une alternance propre. */
-    private fun dropLastUserMessage(message: ChatMessage) = update { song ->
+    private fun dropLastUserMessage(songId: String, message: ChatMessage) = updateById(songId) { song ->
         if (song.chat.lastOrNull() == message) song.copy(chat = song.chat.dropLast(1)) else song
     }
 
@@ -179,9 +186,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         requestId++
         assistant.cancel()
         askJob?.cancel()
-        val pending = _current.value?.chat?.lastOrNull()
+        val song = _current.value
+        val pending = song?.chat?.lastOrNull()
         _streaming.value = null
-        if (pending?.role == "user") dropLastUserMessage(pending)
+        if (song != null && pending?.role == "user") dropLastUserMessage(song.id, pending)
     }
 
     fun clearChat() = update { it.copy(chat = emptyList()) }

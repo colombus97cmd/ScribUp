@@ -38,12 +38,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
@@ -74,7 +73,7 @@ import kotlin.math.max
 class InternalClock {
     var playing by mutableStateOf(false)
         private set
-    private var anchorPos = 1.0
+    private var anchorPos by mutableDoubleStateOf(1.0)
     private var anchorTime = 0L
 
     fun position(bpm: Int, beatsPerBar: Int = 4, now: Long = SystemClock.elapsedRealtime()): Double =
@@ -119,21 +118,17 @@ fun LiveTab(vm: MainViewModel, song: Song) {
         onDispose { view.keepScreenOn = false }
     }
 
-    val bridgeNow by rememberUpdatedState(bridge)
-    val bpm by rememberUpdatedState(song.bpm)
-    val pos by produceState(1.0) {
-        while (true) {
-            withFrameMillis {
-                value = if (bridgeNow.live) bridgeNow.positionAt() else clock.position(bpm)
-            }
-        }
-    }
     val playing = if (live) bridge.fl.playing else clock.playing
+    // Redessine à chaque frame seulement pendant la lecture (position extrapolée avec le tempo)
+    val frame by produceState(0L, playing) {
+        if (playing) while (true) withFrameMillis { value = it }
+    }
+    val pos = frame.let { if (live) bridge.positionAt() else clock.position(song.bpm) }
     val beatsPerBar = if (live) bridge.fl.beatsPerBar else 4
     val bar = floor(pos).toInt()
     val beat = (floor((pos - bar) * beatsPerBar).toInt() + 1).coerceIn(1, beatsPerBar)
-    val currentLine by remember(parsed) { derivedStateOf { parsed.lineAt(pos) } }
-    val currentSection by remember(parsed) { derivedStateOf { parsed.sectionAt(pos) } }
+    val currentLine = parsed.lineAt(pos)
+    val currentSection = parsed.sectionAt(pos)
 
     val items = remember(parsed) {
         buildList {

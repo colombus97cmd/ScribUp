@@ -48,15 +48,19 @@ class AppEndToEndTest {
 
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.onNodeWithText("Nuit blanche").performClick()
+            // L'écran Live s'anime en continu pendant la lecture : on avance l'horloge de Compose à la main.
+            compose.mainClock.autoAdvance = false
             compose.onNodeWithText("Live").performClick()
             // Le badge passe à « FL » quand le pont (simulateur FL) est connecté
-            compose.waitUntil(20_000) { compose.onAllNodesWithText("FL").fetchSemanticsNodes().isNotEmpty() }
+            pumpUntil(20_000) { compose.onAllNodesWithText("FL").fetchSemanticsNodes().isNotEmpty() }
             // Toucher une section envoie « aller à la mesure » au simulateur FL
             compose.onNodeWithText("Intro · M1").performClick()
-            Thread.sleep(6_000) // laisse tourner quelques mesures
+            pump(6_000) // laisse tourner quelques mesures
             screenshot("1-live")
 
             compose.onNodeWithText("Accords").performClick()
+            pump(500)
+            compose.mainClock.autoAdvance = true
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Am").fetchSemanticsNodes().isNotEmpty() }
             screenshot("2-accords")
 
@@ -65,6 +69,23 @@ class AppEndToEndTest {
 
             compose.onNodeWithText("Écrire").performClick()
             screenshot("4-ecrire")
+        }
+    }
+
+    /** Fait avancer l'horloge de Compose au rythme du temps réel. */
+    private fun pump(ms: Long) {
+        val end = System.currentTimeMillis() + ms
+        while (System.currentTimeMillis() < end) {
+            compose.mainClock.advanceTimeBy(50)
+            Thread.sleep(50)
+        }
+    }
+
+    private fun pumpUntil(timeoutMs: Long, condition: () -> Boolean) {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (!condition()) {
+            check(System.currentTimeMillis() < end) { "condition non atteinte en $timeoutMs ms" }
+            pump(200)
         }
     }
 

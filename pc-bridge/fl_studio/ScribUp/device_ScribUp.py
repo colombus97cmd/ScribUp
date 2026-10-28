@@ -25,6 +25,9 @@ HEADER = (0xF0, 0x7D, 0x53, 0x55)  # 0x7D = ID fabricant "non commercial", puis 
 SEND_EVERY = 2         # OnIdle est appelé ~toutes les 20 ms -> ~25 messages/s max
 HEARTBEAT_EVERY = 50   # renvoie l'état même inchangé (~1 s) pour signaler que FL est vivant
 
+# Constantes du module midi (avec valeur de repli si une version de FL ne les expose pas)
+ABSTICKS = getattr(midi, "SONGLENGTH_ABSTICKS", 2)
+
 _idle_count = 0
 _last_payload = ""
 _since_sent = 0
@@ -50,7 +53,7 @@ def _state_payload():
         1 if _safe(transport.isPlaying, False) else 0,
         1 if _safe(transport.isRecording, False) else 0,
         _tempo(),
-        int(_safe(lambda: transport.getSongPos(midi.SONGLENGTH_ABSTICKS), 0)),
+        int(_safe(lambda: transport.getSongPos(ABSTICKS), 0)),
         int(ppq),
         int(ppb),
         int(_safe(transport.getLoopMode, 1)),
@@ -103,10 +106,10 @@ def _goto_bar(bar):
     ppb = _safe(general.getRecPPB, 384) or 384
     ticks = max(0, (bar - 1) * ppb)
     try:
-        transport.setSongPos(ticks, midi.SONGLENGTH_ABSTICKS)
+        transport.setSongPos(ticks, ABSTICKS)
     except Exception:
         # Anciennes versions de l'API : position relative (0.0 - 1.0)
-        length = _safe(lambda: transport.getSongLength(midi.SONGLENGTH_ABSTICKS), 0)
+        length = _safe(lambda: transport.getSongLength(ABSTICKS), 0)
         if length > 0:
             transport.setSongPos(min(1.0, ticks / float(length)))
 

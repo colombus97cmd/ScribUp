@@ -51,11 +51,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Essai dans un hôte audio (le pont doit recevoir le son)
+      - name: Essai comme dans FL (mini-hôte VST3) — le pont doit recevoir le son
         run: |
-          find target/bundled
-          python ci/check_dll.py "target/bundled/ScribUp Send.vst3"
-          pip install numpy pedalboard
+          pip install numpy
           NIH_LOG="$PWD/nih.log" python ci/check_in_host.py "target/bundled/ScribUp Send.vst3" || { echo "--- journal nih-plug ---"; cat nih.log 2>/dev/null; exit 1; }
       - name: Préparer le téléchargement
         run: |

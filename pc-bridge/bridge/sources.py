@@ -38,7 +38,11 @@ class FlMidiLink:
         except ImportError:
             log.warning("mido / python-rtmidi absents : pas de liaison FL Studio")
             return False
-        ins, outs = mido.get_input_names(), mido.get_output_names()
+        try:
+            ins, outs = mido.get_input_names(), mido.get_output_names()
+        except Exception as exc:  # python-rtmidi absent ou cassé
+            log.warning("MIDI indisponible (%s) : pas de liaison FL Studio", exc)
+            return False
         in_port = self._find(ins, self.in_name)
         out_port = self._find(outs, self.out_name)
         if not in_port:
@@ -151,6 +155,8 @@ class LinearResampler:
 class PluginReceiver(threading.Thread):
     """Reçoit le son envoyé par le plugin ScribUp Send placé sur le Master de FL Studio."""
 
+    HINT_AFTER_S = 15.0
+
     def __init__(self, fanout: AudioFanout, port: int = PLUGIN_PORT):
         super().__init__(daemon=True, name="plugin-fl")
         self.fanout = fanout
@@ -176,14 +182,19 @@ class PluginReceiver(threading.Thread):
             sock.bind(("127.0.0.1", self.port))
             sock.settimeout(0.5)
             log.info("En attente du son de FL : place le plugin « ScribUp Send » sur le Master")
+            last_packet = last_hint = time.monotonic()
             while not self._stop_event.is_set():
                 try:
                     data, _ = sock.recvfrom(65536)
-                except socket.timeout:
+                except (socket.timeout, OSError):  # OSError : erreur réseau sans gravité sous Windows
+                    now = time.monotonic()
+                    if now - last_packet > self.HINT_AFTER_S and now - last_hint > self.HINT_AFTER_S:
+                        last_hint = now
+                        log.warning("Aucun son reçu de FL : le plugin « ScribUp Send » est-il sur la piste "
+                                    "Master, avec « Envoyer vers ScribUp » activé ?")
                     continue
-                except OSError:  # Windows signale parfois une erreur réseau sans gravité
-                    continue
-                self.handle(data)
+                if self.handle(data):
+                    last_packet = time.monotonic()
 
     def stop(self) -> None:
         self._stop_event.set()

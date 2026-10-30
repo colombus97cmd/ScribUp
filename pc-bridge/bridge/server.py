@@ -18,7 +18,8 @@ from .protocol import FlState
 
 log = logging.getLogger("scribup")
 
-PROTOCOL_VERSION = 1
+# 2 : son de FL via le plugin ScribUp Send (plus de son de Windows par défaut)
+PROTOCOL_VERSION = 2
 SERVICE_TYPE = "_scribup._tcp.local."
 FL_TIMEOUT_S = 3.0
 # Au-delà de ce retard en attente d'envoi (~200 ms de son), on saute des blocs plutôt que d'accumuler du décalage

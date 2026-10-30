@@ -169,6 +169,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
                 if (bridge.message.isNotBlank()) {
                     val detail = when {
+                        bridge.bridgeOutdated -> "Connecté, mais le pont du PC n'est pas à jour : remplace le dossier pc-bridge"
                         bridge.live -> "Connecté à ${bridge.pcName} · FL Studio détecté"
                         bridge.status == LinkStatus.CONNECTED -> "Connecté à ${bridge.pcName} · FL Studio pas encore détecté (script MIDI ?)"
                         else -> bridge.message

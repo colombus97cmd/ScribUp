@@ -19,7 +19,7 @@ from pathlib import Path
 
 from bridge.analysis import HarmonyAnalyzer
 from bridge.protocol import FlState
-from bridge.server import BridgeServer
+from bridge.server import PROTOCOL_VERSION, BridgeServer
 from bridge.sources import AudioFanout, DemoSource, FlMidiLink, LoopbackCapture, PluginReceiver
 
 CONFIG_PATH = Path.home() / ".scribup_bridge.json"
@@ -82,6 +82,11 @@ def main() -> None:
     if args.list:
         list_devices()
         return
+
+    log = logging.getLogger("scribup")
+    sound = "simulateur" if args.demo else ("tout le son de Windows" if args.source == "windows"
+                                            else "uniquement le son de FL (plugin ScribUp Send)")
+    log.info("Pont ScribUp v%d — son : %s", PROTOCOL_VERSION, sound)
 
     state = FlState()
     analyzer = HarmonyAnalyzer(samplerate=48000)

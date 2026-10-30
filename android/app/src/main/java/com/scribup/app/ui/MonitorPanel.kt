@@ -52,7 +52,8 @@ import com.scribup.app.ui.theme.Warn
 @Composable
 fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -> Unit) {
     val stats by vm.monitor.stats.collectAsStateWithLifecycle()
-    val source = vm.bridge.state.collectAsStateWithLifecycle().value.audio.source
+    val bridgeState by vm.bridge.state.collectAsStateWithLifecycle()
+    val source = bridgeState.audio.source
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp)).background(Surface1).padding(12.dp),
@@ -66,7 +67,8 @@ fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -
                     stats.error != null -> "Lecture impossible : ${stats.error}"
                     stats.receiving && source == "demo" -> "Son du simulateur reçu"
                     stats.receiving && source == "windows" -> "Son de Windows reçu"
-                    stats.receiving -> "Son de FL reçu"
+                    stats.receiving && source == "plugin" -> "Son de FL reçu"
+                    stats.receiving -> "Son reçu d'un ancien pont"
                     else -> "En attente du son de FL…"
                 },
                 style = MaterialTheme.typography.labelLarge,
@@ -91,7 +93,13 @@ fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onMeasure) { Text("Mesurer", maxLines = 1, softWrap = false) }
         }
-        if (!stats.receiving && stats.error == null) {
+        if (bridgeState.bridgeOutdated) {
+            Text(
+                "Le pont du PC est une ancienne version (il envoie le son de Windows). " +
+                    "Remplace tout le dossier pc-bridge par la nouvelle version puis relance start_bridge.bat.",
+                color = Bad, fontSize = 12.sp, lineHeight = 16.sp,
+            )
+        } else if (!stats.receiving && stats.error == null) {
             Text(
                 "Place le plugin « ScribUp Send » sur la piste Master de FL Studio (dernier emplacement d'effet).",
                 color = Warn, fontSize = 12.sp, lineHeight = 16.sp,

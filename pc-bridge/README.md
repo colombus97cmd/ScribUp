@@ -65,6 +65,15 @@ Le PIN est mémorisé dans `%USERPROFILE%\.scribup_bridge.json`.
 
 > Pare-feu Windows : au premier lancement, autorise Python sur les **réseaux privés**, sinon le téléphone ne pourra pas se connecter.
 
+### Mettre à jour le pont
+
+1. Ferme la fenêtre noire du pont.
+2. Télécharge le zip du projet et ouvre-le : le nouveau pont est dans `ScribUp-…\pc-bridge`.
+3. **Supprime** ton ancien dossier `pc-bridge` et mets le nouveau à sa place (ne copie pas un dossier dans l'autre).
+4. Relance `start_bridge.bat` (le premier lancement réinstalle les dépendances, 1 à 2 minutes).
+
+La première ligne affichée indique la version : `Pont ScribUp v2 — son : uniquement le son de FL (plugin ScribUp Send)`.
+
 ## 4. Dans l'app
 
 Réglages → section **PC / FL Studio** : l'app cherche le PC sur le Wi-Fi (sinon tape l'IP), entre le PIN, **Connecter**.

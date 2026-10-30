@@ -60,6 +60,8 @@ data class BridgeState(
     val status: LinkStatus = LinkStatus.OFF,
     val message: String = "",
     val pcName: String = "",
+    /** Version du pont PC (2 = son de FL via le plugin ScribUp Send). */
+    val bridgeVersion: Int = 0,
     val fl: FlInfo = FlInfo(),
     val audio: AudioInfo = AudioInfo(),
     val grid: Map<Int, String> = emptyMap(),
@@ -68,6 +70,13 @@ data class BridgeState(
     val receivedAt: Long = 0L,
 ) {
     val live: Boolean get() = status == LinkStatus.CONNECTED && fl.connected
+
+    /** Connecté à un ancien pont (avant le plugin ScribUp Send) : il faut mettre pc-bridge à jour. */
+    val bridgeOutdated: Boolean get() = status == LinkStatus.CONNECTED && bridgeVersion < CURRENT_BRIDGE_VERSION
+
+    companion object {
+        const val CURRENT_BRIDGE_VERSION = 2
+    }
 
     /**
      * Position en mesures (1.0 = début de la mesure 1), extrapolée avec le tempo.
@@ -192,6 +201,7 @@ class BridgeClient(private val scope: CoroutineScope) {
                         status = LinkStatus.CONNECTED,
                         message = "Connecté",
                         pcName = obj["name"]?.jsonPrimitive?.content ?: "",
+                        bridgeVersion = obj["version"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                     )
                 }
                 if (audioWanted) send(audioRequest(true))

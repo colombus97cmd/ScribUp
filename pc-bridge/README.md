@@ -32,7 +32,8 @@ son du PC ──(capture « loopback » Windows)──▶ analyse des accords / 
 
 ## 3. Lancer le pont
 
-Il faut Python 3.10+ ([python.org](https://www.python.org/downloads/), coche « Add to PATH »).
+Il faut **Python 3.12** : [python.org/downloads/windows](https://www.python.org/downloads/windows/) → « Python 3.12.x » → « Windows installer (64-bit) », et coche **« Add python.exe to PATH »** au début de l'installation.
+Les versions 3.13 et plus ne marchent pas encore : le module MIDI `python-rtmidi` n'y est pas disponible tout prêt sous Windows.
 
 - Windows : double-clique sur `start_bridge.bat` (le premier lancement installe les dépendances).
 - Ou à la main :

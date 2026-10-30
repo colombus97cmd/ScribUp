@@ -155,7 +155,7 @@ class PluginReceiver(threading.Thread):
         super().__init__(daemon=True, name="plugin-fl")
         self.fanout = fanout
         self.port = port
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
         self._resampler: LinearResampler | None = None
 
     def handle(self, data: bytes) -> bool:
@@ -176,7 +176,7 @@ class PluginReceiver(threading.Thread):
             sock.bind(("127.0.0.1", self.port))
             sock.settimeout(0.5)
             log.info("En attente du son de FL : place le plugin « ScribUp Send » sur le Master")
-            while not self._stop.is_set():
+            while not self._stop_event.is_set():
                 try:
                     data, _ = sock.recvfrom(65536)
                 except socket.timeout:
@@ -186,7 +186,7 @@ class PluginReceiver(threading.Thread):
                 self.handle(data)
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()
 
 
 class LoopbackCapture(threading.Thread):
@@ -202,7 +202,7 @@ class LoopbackCapture(threading.Thread):
         self.samplerate = fanout.samplerate
         self.block = block
         self.device = device
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
 
     def _microphone(self):
         import soundcard as sc
@@ -223,11 +223,11 @@ class LoopbackCapture(threading.Thread):
             return
         log.info("Capture audio : '%s'", mic.name)
         with mic.recorder(samplerate=self.samplerate, channels=2, blocksize=self.block) as rec:
-            while not self._stop.is_set():
+            while not self._stop_event.is_set():
                 self.fanout.push(rec.record(numframes=self.block), source="windows")
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()
 
 
 class DemoSource(threading.Thread):
@@ -242,7 +242,7 @@ class DemoSource(threading.Thread):
         self.bpm = bpm
         self.playing = True
         self._ticks = 0.0
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
 
     def command(self, action: str, bar: int | None = None) -> bool:
         if action in ("play",):
@@ -261,7 +261,7 @@ class DemoSource(threading.Thread):
         dt = block / sr
         phase = 0.0
         next_time = time.monotonic()
-        while not self._stop.is_set():
+        while not self._stop_event.is_set():
             if self.playing:
                 self._ticks += dt * self.bpm / 60.0 * self.state.ppq
                 bar = int(self._ticks // self.state.ppb)
@@ -278,4 +278,4 @@ class DemoSource(threading.Thread):
             time.sleep(max(0.0, next_time - time.monotonic()))
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()

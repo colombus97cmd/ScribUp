@@ -210,6 +210,6 @@ mod tests {
         let mut packet = Vec::new();
         encode_packet(&mut packet, 44_100, 7, &[0.5, -0.25]);
         let hex: String = packet.iter().map(|b| format!("{b:02x}")).collect();
-        assert_eq!(hex, "5343524244ac0000020001000700000000000003f000080be");
+        assert_eq!(hex, "5343524244ac000002000100070000000000003f000080be");
     }
 }

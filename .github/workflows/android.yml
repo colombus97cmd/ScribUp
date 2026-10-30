@@ -1,15 +1,17 @@
-name: ScribUp (Android + pont PC)
+name: ScribUp (Android + pont PC + plugin FL)
 
 on:
   push:
     paths:
       - "android/**"
       - "pc-bridge/**"
+      - "fl-plugin/**"
       - ".github/workflows/android.yml"
   pull_request:
     paths:
       - "android/**"
       - "pc-bridge/**"
+      - "fl-plugin/**"
       - ".github/workflows/android.yml"
   workflow_dispatch:
     inputs:
@@ -28,6 +30,40 @@ jobs:
           python-version: "3.12"
       - run: pip install numpy "websockets>=13" pytest
       - run: python -m pytest -q pc-bridge/tests
+
+  # Plugin VST3 « ScribUp Send » pour FL Studio (Windows)
+  fl-plugin:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: fl-plugin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fl-plugin
+      - name: Tests
+        run: cargo test -p scribup_send
+      - name: Compilation du VST3
+        run: cargo xtask bundle scribup_send --release
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Essai dans un hôte audio (le pont doit recevoir le son)
+        run: |
+          pip install numpy pedalboard
+          python ci/check_in_host.py "target/bundled/ScribUp Send.vst3"
+      - name: Préparer le téléchargement
+        run: |
+          mkdir -p ../dist
+          cp -r "target/bundled/ScribUp Send.vst3" ../dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scribup-send-vst3
+          path: dist/
+          if-no-files-found: error
 
   android:
     runs-on: ubuntu-latest

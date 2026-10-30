@@ -3,14 +3,14 @@
 Le pont tourne sur le PC où tu utilises FL Studio. Il :
 
 - lit la **position, le tempo, la signature, lecture/enregistrement** de FL Studio grâce à un petit script MIDI ;
-- **écoute le son du PC** (ce que FL joue) et détecte l'**accord**, la **basse** et la **tonalité** en direct ;
+- reçoit **le son de FL** (plugin ScribUp Send sur le Master) et détecte l'**accord**, la **basse** et la **tonalité** en direct ;
 - construit une **grille d'accords mesure par mesure** (plus la boucle tourne, plus elle est fiable) ;
 - envoie tout ça à l'app Android par le Wi-Fi, et reçoit les commandes du téléphone (lecture, stop, REC, aller à une mesure).
 
 ```
 FL Studio ──(script MIDI, port loopMIDI "ScribUp FL")──▶ scribup_bridge.py ──(Wi-Fi, WebSocket)──▶ téléphone
 FL Studio ◀─(port loopMIDI "ScribUp CMD")── scribup_bridge.py ◀── commandes du téléphone
-son du PC ──(capture « loopback » Windows)──▶ analyse des accords / tonalité
+son de FL ──(plugin ScribUp Send sur le Master)──▶ analyse des accords / tonalité + retour casque
 ```
 
 ## 1. Créer deux ports MIDI virtuels (loopMIDI)
@@ -55,7 +55,8 @@ Options utiles :
 |---|---|
 | `--demo` | simule FL + un beat (Am F C G à 90 BPM) pour tester l'app sans FL |
 | `--list` | liste les ports MIDI et les sources audio |
-| `--audio-device "Speakers"` | écoute un périphérique précis (par défaut : la sortie par défaut de Windows) |
+| `--source windows` | écoute tout le son de Windows au lieu du plugin FL (sans carte son en ASIO) |
+| `--audio-device "Speakers"` | avec `--source windows` : écoute un périphérique précis |
 | `--latency-ms 80` | décale l'analyse pour aligner la grille sur les mesures |
 | `--pin 1234` / `--no-pin` | choisir / désactiver le PIN |
 | `--port 8765` | port réseau |
@@ -69,10 +70,19 @@ Le PIN est mémorisé dans `%USERPROFILE%\.scribup_bridge.json`.
 Réglages → section **PC / FL Studio** : l'app cherche le PC sur le Wi-Fi (sinon tape l'IP), entre le PIN, **Connecter**.
 Le badge passe au vert « FL » quand FL Studio est détecté.
 
+## Le son de FL : plugin ScribUp Send
+
+Par défaut, le pont n'utilise **que le son de FL Studio**, envoyé par le plugin **ScribUp Send** placé sur la piste
+Master (voir `../fl-plugin/README.md`). Rien d'autre de Windows (YouTube, notifications…) n'est analysé ni envoyé
+au téléphone, et ça marche avec l'ASIO d'une carte son (Focusrite…).
+
+Sans le plugin, `python scribup_bridge.py --source windows` écoute à la place tout ce que joue Windows
+(ne fonctionne pas si FL utilise l'ASIO d'une carte son).
+
 ## Retour casque (écouteurs Bluetooth sur le téléphone)
 
 Sans casque branché au PC, tu peux écouter FL Studio dans des écouteurs Bluetooth connectés au **téléphone** :
-onglet **Live** → bouton 🎧. Le pont envoie au téléphone le son que joue le PC.
+onglet **Live** → bouton 🎧. Le pont envoie au téléphone le son de FL (plugin ScribUp Send).
 
 - **Décalage** : Wi-Fi + Bluetooth = environ 200 à 300 ms de retard. Touche **Mesurer** puis tape en rythme sur le beat
   que tu entends : l'app calcule ce retard et décale les paroles pour qu'elles suivent ce que tu entends.
@@ -84,5 +94,5 @@ onglet **Live** → bouton 🎧. Le pont envoie au téléphone le son que joue l
 ## Notes
 
 - La détection d'accords marche par comparaison du spectre à des modèles d'accords (majeur, mineur, 7, maj7, m7, dim, sus2, sus4, renversements par la basse). Sur un beat chargé (808 saturée, gros drums) elle peut hésiter : la grille par mesure, cumulée sur plusieurs boucles, est plus fiable que l'accord instantané.
-- La capture audio utilise le « loopback » WASAPI (Windows). Sous macOS il faut un périphérique virtuel type BlackHole et `--audio-device BlackHole`.
+- `--source windows` utilise le « loopback » WASAPI de Windows. Sous macOS il faut un périphérique virtuel type BlackHole et `--audio-device BlackHole`.
 - Tests : `python -m pytest tests`.

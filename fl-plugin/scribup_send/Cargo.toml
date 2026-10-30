@@ -1,0 +1,15 @@
+[package]
+name = "scribup_send"
+version = "0.1.0"
+edition = "2021"
+description = "Envoie le son de FL Studio au pont ScribUp (retour casque, analyse des accords)"
+# Les bindings VST3 de nih-plug sont sous GPLv3
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+nih_plug = { workspace = true }
+rtrb = "0.3"

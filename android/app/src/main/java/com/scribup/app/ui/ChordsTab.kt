@@ -68,7 +68,14 @@ fun ChordsTab(vm: MainViewModel, song: Song, onAskClaude: (String) -> Unit) {
                     Column {
                         if (audio.active) Text("confiance ${(audio.chordConf * 100).toInt()} %", color = Dim, fontSize = 12.sp)
                         audio.bass?.let { Text("basse ${MusicTheory.displayChord(it, latin)}", color = Dim, fontSize = 12.sp) }
-                        Text(if (audio.active) "${audio.level.toInt()} dB" else "silence", color = Dim, fontSize = 12.sp)
+                        Text(
+                            when {
+                                audio.source == null -> "pas de son (plugin ScribUp Send sur le Master ?)"
+                                audio.active -> "${audio.level.toInt()} dB"
+                                else -> "silence"
+                            },
+                            color = Dim, fontSize = 12.sp,
+                        )
                     }
                 }
                 ChromaBars(audio.chroma, latin)

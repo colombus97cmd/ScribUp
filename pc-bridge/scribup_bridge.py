@@ -20,7 +20,7 @@ from pathlib import Path
 from bridge.analysis import HarmonyAnalyzer
 from bridge.protocol import FlState
 from bridge.server import BridgeServer
-from bridge.sources import AudioFanout, DemoSource, FlMidiLink, LoopbackCapture
+from bridge.sources import AudioFanout, DemoSource, FlMidiLink, LoopbackCapture, PluginReceiver
 
 CONFIG_PATH = Path.home() / ".scribup_bridge.json"
 
@@ -67,7 +67,10 @@ def main() -> None:
     parser.add_argument("--no-pin", action="store_true", help="désactive le PIN")
     parser.add_argument("--midi-in", default="ScribUp FL", help="port loopMIDI où FL envoie son état")
     parser.add_argument("--midi-out", default="ScribUp CMD", help="port loopMIDI vers lequel envoyer les commandes")
-    parser.add_argument("--audio-device", help="nom (partiel) du périphérique à écouter, défaut : sortie par défaut")
+    parser.add_argument("--source", choices=["plugin", "windows"], default="plugin",
+                        help="son analysé et envoyé au téléphone : « plugin » = uniquement le son de FL via le "
+                             "plugin ScribUp Send (défaut) ; « windows » = tout ce que joue Windows")
+    parser.add_argument("--audio-device", help="avec --source windows : nom (partiel) du périphérique à écouter")
     parser.add_argument("--latency-ms", type=float, default=80.0, help="latence audio pour aligner la grille d'accords")
     parser.add_argument("--demo", action="store_true", help="simule FL Studio et un beat")
     parser.add_argument("--list", action="store_true", help="liste ports MIDI et sources audio")
@@ -89,10 +92,13 @@ def main() -> None:
     else:
         commander = FlMidiLink(state, args.midi_in, args.midi_out)
         commander.open()
-        source = LoopbackCapture(fanout, device=args.audio_device)
+        if args.source == "windows":
+            source = LoopbackCapture(fanout, device=args.audio_device)
+        else:
+            source = PluginReceiver(fanout)  # uniquement le son de FL, rien d'autre
 
     server = BridgeServer(state, analyzer, commander, load_pin(args), latency_ms=args.latency_ms,
-                          audio_rate=fanout.samplerate)
+                          audio_rate=fanout.samplerate, audio_source=fanout.active_source)
     fanout.listeners.append(server.push_audio)  # retour casque vers le téléphone
     source.start()
     workers = [source]

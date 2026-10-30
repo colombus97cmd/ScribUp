@@ -64,7 +64,7 @@ class AppEndToEndTest {
             // Retour casque : le son du simulateur FL arrive et se joue sur le téléphone
             compose.onNodeWithContentDescription("Retour casque").performClick()
             pumpUntil(15_000) {
-                compose.onAllNodesWithText("Son du PC reçu", substring = true).fetchSemanticsNodes().isNotEmpty()
+                compose.onAllNodesWithText("Son du simulateur reçu").fetchSemanticsNodes().isNotEmpty()
             }
             pump(1_500)
             screenshot("2-retour-casque")

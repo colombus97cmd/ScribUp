@@ -37,7 +37,7 @@ def local_ip() -> str:
 class BridgeServer:
     def __init__(self, state: FlState, analyzer: HarmonyAnalyzer, commander, pin: str | None,
                  latency_ms: float = 80.0, rate_hz: float = 20.0, name: str | None = None,
-                 audio_rate: int = 48000):
+                 audio_rate: int = 48000, audio_source=None):
         self.state = state
         self.analyzer = analyzer
         self.commander = commander  # objet avec send_command(action, bar) / command(action, bar)
@@ -49,6 +49,7 @@ class BridgeServer:
         self.clients: set = set()
         self.audio_clients: set = set()  # téléphones en mode « retour casque »
         self.audio_rate = audio_rate
+        self.audio_source = audio_source  # fonction : d'où vient le son en ce moment (plugin, windows, demo)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._last_grid_bar: int | None = None
 
@@ -132,7 +133,9 @@ class BridgeServer:
         fl = self.state
         if fl.connected and time.monotonic() - fl.updated_at > FL_TIMEOUT_S:
             fl.connected = False
-        return json.dumps({"type": "state", "fl": fl.to_json(), "audio": self.analyzer.snapshot()})
+        audio = self.analyzer.snapshot()
+        audio["source"] = self.audio_source() if self.audio_source else None
+        return json.dumps({"type": "state", "fl": fl.to_json(), "audio": audio})
 
     def _update_grid(self) -> bool:
         accumulated = self.analyzer.take_accumulated()

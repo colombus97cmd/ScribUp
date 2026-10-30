@@ -6,6 +6,7 @@ Outils d'écriture rap / chant avec Claude.
 |---|---|
 | [`android/`](android/README.md) | **App Android perso** : écriture multilingue avec Claude, mode Live synchronisé sur FL Studio (paroles, ad-libs, mesures), accords et tonalité en direct |
 | [`pc-bridge/`](pc-bridge/README.md) | **Pont PC** : script MIDI FL Studio + compagnon Python qui écoute le son du PC (accords, tonalité, grille par mesure) et parle au téléphone par le Wi-Fi |
+| [`fl-plugin/`](fl-plugin/README.md) | **Plugin VST3 « ScribUp Send »** : à mettre sur le Master de FL, envoie le son de FL au pont (marche avec l'ASIO d'une carte son) |
 | `src/` | Application web Next.js (version web d'origine) |
 
 ## Démarrage rapide (app + FL Studio)

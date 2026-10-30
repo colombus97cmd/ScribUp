@@ -52,6 +52,7 @@ import com.scribup.app.ui.theme.Warn
 @Composable
 fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -> Unit) {
     val stats by vm.monitor.stats.collectAsStateWithLifecycle()
+    val source = vm.bridge.state.collectAsStateWithLifecycle().value.audio.source
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp)).background(Surface1).padding(12.dp),
@@ -63,8 +64,10 @@ fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -
             Text(
                 when {
                     stats.error != null -> "Lecture impossible : ${stats.error}"
-                    stats.receiving -> "Son du PC reçu"
-                    else -> "En attente du son du PC…"
+                    stats.receiving && source == "demo" -> "Son du simulateur reçu"
+                    stats.receiving && source == "windows" -> "Son de Windows reçu"
+                    stats.receiving -> "Son de FL reçu"
+                    else -> "En attente du son de FL…"
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = if (stats.error != null) Bad else Color.Unspecified,
@@ -87,6 +90,12 @@ fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -
             ) { Icon(Icons.Default.Add, "Plus 10 ms") }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onMeasure) { Text("Mesurer", maxLines = 1, softWrap = false) }
+        }
+        if (!stats.receiving && stats.error == null) {
+            Text(
+                "Place le plugin « ScribUp Send » sur la piste Master de FL Studio (dernier emplacement d'effet).",
+                color = Warn, fontSize = 12.sp, lineHeight = 16.sp,
+            )
         }
         Text(
             "Coupe l'écoute du micro dans FL : ta voix te reviendrait avec ce retard. " +

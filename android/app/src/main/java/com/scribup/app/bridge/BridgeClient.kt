@@ -47,6 +47,8 @@ data class AudioInfo(
     val key: String? = null,
     val keyConf: Double = 0.0,
     val chroma: List<Double> = emptyList(),
+    /** D'où vient le son analysé : "plugin" (FL), "windows", "demo", ou null si rien n'arrive. */
+    val source: String? = null,
 )
 
 enum class LinkStatus { OFF, CONNECTING, CONNECTED, ERROR }

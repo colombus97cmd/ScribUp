@@ -16,11 +16,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,7 +63,7 @@ fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -
             Text(
                 when {
                     stats.error != null -> "Lecture impossible : ${stats.error}"
-                    stats.receiving -> "Son du PC reçu · tampon ${stats.bufferedMs} ms"
+                    stats.receiving -> "Son du PC reçu"
                     else -> "En attente du son du PC…"
                 },
                 style = MaterialTheme.typography.labelLarge,
@@ -73,14 +75,18 @@ fun MonitorPanel(vm: MainViewModel, delayMs: Int, volume: Float, onMeasure: () -
             Slider(value = volume, onValueChange = vm::setMonitorVolume, modifier = Modifier.weight(1f))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Décalage $delayMs ms", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            TextButton(onClick = { vm.updateSettings { it.copy(monitorDelayMs = (delayMs - 10).coerceAtLeast(0)) } }) {
-                Text("−", fontSize = 18.sp)
-            }
-            TextButton(onClick = { vm.updateSettings { it.copy(monitorDelayMs = delayMs + 10) } }) {
-                Text("+", fontSize = 18.sp)
-            }
-            OutlinedButton(onClick = onMeasure) { Text("Mesurer") }
+            Text("Décalage", color = Dim, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(60.dp))
+            IconButton(
+                onClick = { vm.updateSettings { it.copy(monitorDelayMs = (delayMs - 10).coerceAtLeast(0)) } },
+                modifier = Modifier.size(36.dp),
+            ) { Icon(Icons.Default.Remove, "Moins 10 ms") }
+            Text("$delayMs ms", maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelLarge)
+            IconButton(
+                onClick = { vm.updateSettings { it.copy(monitorDelayMs = delayMs + 10) } },
+                modifier = Modifier.size(36.dp),
+            ) { Icon(Icons.Default.Add, "Plus 10 ms") }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onMeasure) { Text("Mesurer", maxLines = 1, softWrap = false) }
         }
         Text(
             "Coupe l'écoute du micro dans FL : ta voix te reviendrait avec ce retard. " +

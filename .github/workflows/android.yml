@@ -53,6 +53,7 @@ jobs:
           python-version: "3.12"
       - name: Essai dans un hôte audio (le pont doit recevoir le son)
         run: |
+          find target/bundled
           pip install numpy pedalboard
           python ci/check_in_host.py "target/bundled/ScribUp Send.vst3"
       - name: Préparer le téléchargement

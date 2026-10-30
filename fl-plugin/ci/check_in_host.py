@@ -29,7 +29,7 @@ def main(plugin_path: str) -> None:
     receiver.start()
     time.sleep(0.3)
 
-    plugin = load_plugin(plugin_path)
+    plugin = load_plugin(str(Path(plugin_path).resolve()))
     print("Plugin chargé :", plugin.name)
 
     mono = render_chord("Am", 3.0, SAMPLE_RATE)

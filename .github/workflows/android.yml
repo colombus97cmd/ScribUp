@@ -56,7 +56,7 @@ jobs:
           find target/bundled
           python ci/check_dll.py "target/bundled/ScribUp Send.vst3"
           pip install numpy pedalboard
-          python ci/check_in_host.py "target/bundled/ScribUp Send.vst3"
+          NIH_LOG="$PWD/nih.log" python ci/check_in_host.py "target/bundled/ScribUp Send.vst3" || { echo "--- journal nih-plug ---"; cat nih.log 2>/dev/null; exit 1; }
       - name: Préparer le téléchargement
         run: |
           mkdir -p ../dist

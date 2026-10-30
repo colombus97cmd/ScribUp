@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -22,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -106,6 +108,8 @@ private sealed interface LiveItem {
 fun LiveTab(vm: MainViewModel, song: Song) {
     val bridge by vm.bridge.state.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val monitorOn by vm.monitorOn.collectAsStateWithLifecycle()
+    var measuring by remember { mutableStateOf(false) }
     val parsed = remember(song.lyrics, song.barsPerLine) { LyricsParser.parse(song.lyrics, song.barsPerLine) }
     val clock = remember { InternalClock() }
     val live = bridge.live
@@ -124,7 +128,9 @@ fun LiveTab(vm: MainViewModel, song: Song) {
     val frame by produceState(0L, playing) {
         if (playing) while (true) withFrameMillis { value = it }
     }
-    val pos = frame.let { if (live) bridge.positionAt() else clock.position(song.bpm) }
+    // Avec le retour casque, les paroles suivent ce que tu entends (en retard sur FL)
+    val delayMs = if (monitorOn) settings.monitorDelayMs else 0
+    val pos = frame.let { if (live) bridge.positionAt(delayMs = delayMs) else clock.position(song.bpm) }
     val beatsPerBar = if (live) bridge.fl.beatsPerBar else 4
     val bar = floor(pos).toInt()
     val beat = (floor((pos - bar) * beatsPerBar).toInt() + 1).coerceIn(1, beatsPerBar)
@@ -201,32 +207,44 @@ fun LiveTab(vm: MainViewModel, song: Song) {
         }
 
         // --- Transport --------------------------------------------------------------
+        val small = Modifier.size(42.dp)
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             FilledIconButton(
                 onClick = { if (live) vm.bridge.command("toggle") else clock.toggle(song.bpm) },
-                modifier = Modifier.width(64.dp).height(48.dp),
+                modifier = Modifier.width(56.dp).height(44.dp),
             ) { Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, "Lecture / pause") }
-            IconButton(onClick = { if (live) vm.bridge.command("stop") else clock.stop() }) {
+            IconButton(onClick = { if (live) vm.bridge.command("stop") else clock.stop() }, modifier = small) {
                 Icon(Icons.Default.Stop, "Stop")
             }
             if (live) {
                 IconButton(
                     onClick = { vm.bridge.command("record") },
+                    modifier = small,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = if (bridge.fl.recording) Bad else Dim),
                 ) { Icon(Icons.Default.FiberManualRecord, "Enregistrement") }
             }
-            IconButton(onClick = { currentSection?.let { jumpTo(floor(it.start).toInt()) } }) {
+            IconButton(onClick = { currentSection?.let { jumpTo(floor(it.start).toInt()) } }, modifier = small) {
                 Icon(Icons.Default.Replay, "Reprendre la section")
             }
             Spacer(Modifier.weight(1f))
             IconButton(
+                onClick = { vm.setMonitor(!monitorOn) },
+                modifier = small,
+                colors = IconButtonDefaults.iconButtonColors(contentColor = if (monitorOn) Accent else Dim),
+            ) { Icon(Icons.Default.Headphones, "Retour casque") }
+            IconButton(
                 onClick = { follow = !follow },
+                modifier = small,
                 colors = IconButtonDefaults.iconButtonColors(contentColor = if (follow) Accent else Dim),
             ) { Icon(Icons.Default.MyLocation, if (follow) "Suivi automatique activé" else "Suivi automatique désactivé") }
+        }
+
+        if (monitorOn) {
+            MonitorPanel(vm, settings.monitorDelayMs, settings.monitorVolume, onMeasure = { measuring = true })
         }
 
         if (parsed.sections.isNotEmpty()) {
@@ -276,6 +294,8 @@ fun LiveTab(vm: MainViewModel, song: Song) {
             }
         }
     }
+
+    if (measuring) MeasureDelayDialog(vm, onDismiss = { measuring = false })
 }
 
 private enum class LineState { PAST, CURRENT, NEXT }

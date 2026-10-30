@@ -15,6 +15,9 @@ data class AppSettings(
     val latinNotes: Boolean = false,
     val preRollBars: Int = 1,
     val liveFontSize: Int = 26,
+    /** Retard du retour casque (PC -> Wi-Fi -> téléphone -> Bluetooth), mesuré en tapant en rythme. */
+    val monitorDelayMs: Int = 250,
+    val monitorVolume: Float = 1f,
 )
 
 data class ModelOption(val id: String, val label: String)
@@ -41,6 +44,8 @@ class SettingsStore(context: Context) {
         latinNotes = prefs.getBoolean("latinNotes", false),
         preRollBars = prefs.getInt("preRollBars", 1),
         liveFontSize = prefs.getInt("liveFontSize", 26),
+        monitorDelayMs = prefs.getInt("monitorDelayMs", AppSettings().monitorDelayMs),
+        monitorVolume = prefs.getFloat("monitorVolume", 1f),
     )
 
     fun update(transform: (AppSettings) -> AppSettings) {
@@ -55,6 +60,8 @@ class SettingsStore(context: Context) {
             .putBoolean("latinNotes", s.latinNotes)
             .putInt("preRollBars", s.preRollBars)
             .putInt("liveFontSize", s.liveFontSize)
+            .putInt("monitorDelayMs", s.monitorDelayMs)
+            .putFloat("monitorVolume", s.monitorVolume)
             .apply()
         _settings.value = s
     }

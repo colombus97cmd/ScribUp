@@ -8,6 +8,8 @@ import logging
 import socket
 import time
 
+import numpy as np
+
 from websockets.asyncio.server import broadcast, serve
 from websockets.exceptions import ConnectionClosed
 
@@ -19,6 +21,8 @@ log = logging.getLogger("scribup")
 PROTOCOL_VERSION = 1
 SERVICE_TYPE = "_scribup._tcp.local."
 FL_TIMEOUT_S = 3.0
+# Au-delà de ce retard en attente d'envoi (~200 ms de son), on saute des blocs plutôt que d'accumuler du décalage
+MAX_AUDIO_BACKLOG = 80_000
 
 
 def local_ip() -> str:
@@ -32,7 +36,8 @@ def local_ip() -> str:
 
 class BridgeServer:
     def __init__(self, state: FlState, analyzer: HarmonyAnalyzer, commander, pin: str | None,
-                 latency_ms: float = 80.0, rate_hz: float = 20.0, name: str | None = None):
+                 latency_ms: float = 80.0, rate_hz: float = 20.0, name: str | None = None,
+                 audio_rate: int = 48000):
         self.state = state
         self.analyzer = analyzer
         self.commander = commander  # objet avec send_command(action, bar) / command(action, bar)
@@ -42,6 +47,9 @@ class BridgeServer:
         self.name = name or socket.gethostname()
         self.grid = BarGrid()
         self.clients: set = set()
+        self.audio_clients: set = set()  # téléphones en mode « retour casque »
+        self.audio_rate = audio_rate
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._last_grid_bar: int | None = None
 
     # --- connexions -------------------------------------------------------
@@ -61,14 +69,15 @@ class BridgeServer:
         log.info("Téléphone connecté : %s", ws.remote_address)
         try:
             async for raw in ws:
-                self._on_client_message(raw)
+                self._on_client_message(ws, raw)
         except ConnectionClosed:
             pass
         finally:
             self.clients.discard(ws)
+            self.audio_clients.discard(ws)
             log.info("Téléphone déconnecté : %s", ws.remote_address)
 
-    def _on_client_message(self, raw) -> None:
+    def _on_client_message(self, ws, raw) -> None:
         try:
             msg = json.loads(raw)
         except ValueError:
@@ -88,6 +97,31 @@ class BridgeServer:
             broadcast(self.clients, self._grid_message())
         elif kind == "key_reset":
             self.analyzer.reset_key()
+        elif kind == "audio":
+            if msg.get("enabled"):
+                self.audio_clients.add(ws)
+                broadcast([ws], json.dumps({"type": "audio_format", "rate": self.audio_rate,
+                                            "channels": 2, "encoding": "s16le"}))
+                log.info("Retour casque activé pour %s", ws.remote_address)
+            else:
+                self.audio_clients.discard(ws)
+
+    # --- retour casque ----------------------------------------------------
+
+    def push_audio(self, stereo: np.ndarray) -> None:
+        """Appelé depuis le fil de capture avec un bloc stéréo float32 ; envoie le son aux téléphones abonnés."""
+        loop = self._loop
+        if loop is None or not self.audio_clients:
+            return
+        pcm = (np.clip(stereo, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+        loop.call_soon_threadsafe(self._send_audio, pcm)
+
+    def _send_audio(self, pcm: bytes) -> None:
+        for ws in list(self.audio_clients):
+            transport = getattr(ws, "transport", None)
+            if transport is not None and transport.get_write_buffer_size() > MAX_AUDIO_BACKLOG:
+                continue  # Wi-Fi saturé : on lâche ce bloc pour garder le retard au minimum
+            broadcast([ws], pcm)
 
     # --- diffusion --------------------------------------------------------
 
@@ -138,7 +172,9 @@ class BridgeServer:
         return zc, info
 
     async def run(self, host: str, port: int) -> None:
-        async with serve(self.handler, host, port, ping_interval=10, ping_timeout=10):
+        self._loop = asyncio.get_running_loop()
+        async with serve(self.handler, host, port, ping_interval=10, ping_timeout=10,
+                         compression=None):
             advert = await self._advertise(port)
             log.info("Pont ScribUp prêt : ws://%s:%d %s", local_ip(), port,
                      f"(PIN {self.pin})" if self.pin else "(sans PIN)")

@@ -69,6 +69,18 @@ Le PIN est mémorisé dans `%USERPROFILE%\.scribup_bridge.json`.
 Réglages → section **PC / FL Studio** : l'app cherche le PC sur le Wi-Fi (sinon tape l'IP), entre le PIN, **Connecter**.
 Le badge passe au vert « FL » quand FL Studio est détecté.
 
+## Retour casque (écouteurs Bluetooth sur le téléphone)
+
+Sans casque branché au PC, tu peux écouter FL Studio dans des écouteurs Bluetooth connectés au **téléphone** :
+onglet **Live** → bouton 🎧. Le pont envoie au téléphone le son que joue le PC.
+
+- **Décalage** : Wi-Fi + Bluetooth = environ 200 à 300 ms de retard. Touche **Mesurer** puis tape en rythme sur le beat
+  que tu entends : l'app calcule ce retard et décale les paroles pour qu'elles suivent ce que tu entends.
+- **Ta voix** : coupe l'écoute du micro dans FL (bouton de monitoring de la piste micro), sinon tu t'entends avec ce retard,
+  ce qui gêne énormément pour rapper ou chanter. Pour t'entendre sans décalage, il faut des écouteurs filaires sur le PC.
+- **Après une prise** : comme tu poses sur un beat entendu en retard, la prise arrive en retard dans FL. Avance le clip
+  du nombre de millisecondes affiché dans l'app (dans la Playlist, maintiens Alt pour le déplacer finement).
+
 ## Notes
 
 - La détection d'accords marche par comparaison du spectre à des modèles d'accords (majeur, mineur, 7, maj7, m7, dim, sus2, sus4, renversements par la basse). Sur un beat chargé (808 saturée, gros drums) elle peut hésiter : la grille par mesure, cumulée sur plusieurs boucles, est plus fiable que l'accord instantané.

@@ -21,6 +21,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString
 import java.util.concurrent.TimeUnit
 
 @Serializable
@@ -50,6 +51,9 @@ data class AudioInfo(
 
 enum class LinkStatus { OFF, CONNECTING, CONNECTED, ERROR }
 
+/** Format du son envoyé par le pont pour le retour casque. */
+data class StreamFormat(val rate: Int = 48000, val channels: Int = 2)
+
 data class BridgeState(
     val status: LinkStatus = LinkStatus.OFF,
     val message: String = "",
@@ -57,17 +61,22 @@ data class BridgeState(
     val fl: FlInfo = FlInfo(),
     val audio: AudioInfo = AudioInfo(),
     val grid: Map<Int, String> = emptyMap(),
+    val audioFormat: StreamFormat? = null,
     /** Horodatage (elapsedRealtime) de la dernière position reçue, pour l'extrapolation. */
     val receivedAt: Long = 0L,
 ) {
     val live: Boolean get() = status == LinkStatus.CONNECTED && fl.connected
 
-    /** Position en mesures (1.0 = début de la mesure 1), extrapolée avec le tempo. */
-    fun positionAt(nowMs: Long = SystemClock.elapsedRealtime()): Double {
+    /**
+     * Position en mesures (1.0 = début de la mesure 1), extrapolée avec le tempo.
+     * [delayMs] recule la position pendant la lecture : avec le retour casque, on affiche
+     * ce que tu entends, pas ce que FL joue.
+     */
+    fun positionAt(nowMs: Long = SystemClock.elapsedRealtime(), delayMs: Int = 0): Double {
         val beats = (fl.beat - 1) + fl.beatFrac
         var pos = fl.bar + beats / fl.beatsPerBar
         if (fl.playing && receivedAt > 0) {
-            val elapsed = ((nowMs - receivedAt).coerceIn(0, 500)) / 1000.0
+            val elapsed = ((nowMs - receivedAt).coerceIn(-500, 500) - delayMs) / 1000.0
             pos += elapsed * fl.bpm / 60.0 / fl.beatsPerBar
         }
         return pos
@@ -85,6 +94,12 @@ class BridgeClient(private val scope: CoroutineScope) {
 
     private val _state = MutableStateFlow(BridgeState())
     val state: StateFlow<BridgeState> = _state.asStateFlow()
+
+    /** Reçoit les blocs de son du PC (fil réseau d'OkHttp) quand le retour casque est actif. */
+    @Volatile
+    var audioSink: ((ByteString) -> Unit)? = null
+    @Volatile
+    private var audioWanted = false
 
     private var socket: WebSocket? = null
     private var reconnectJob: Job? = null
@@ -119,6 +134,17 @@ class BridgeClient(private val scope: CoroutineScope) {
 
     fun resetKey() = send(buildJsonObject { put("type", "key_reset") })
 
+    /** Demande (ou arrête) l'envoi du son du PC ; redemandé automatiquement après une reconnexion. */
+    fun setAudioStream(enabled: Boolean) {
+        audioWanted = enabled
+        send(audioRequest(enabled))
+    }
+
+    private fun audioRequest(enabled: Boolean) = buildJsonObject {
+        put("type", "audio")
+        put("enabled", enabled)
+    }
+
     private fun send(obj: JsonObject): Boolean = socket?.send(obj.toString()) ?: false
 
     private fun open() {
@@ -141,6 +167,10 @@ class BridgeClient(private val scope: CoroutineScope) {
                 if (myGeneration == generation) handle(text)
             }
 
+            override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
+                if (myGeneration == generation) audioSink?.invoke(bytes)
+            }
+
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 if (myGeneration == generation) scheduleReconnect("Connexion fermée")
             }
@@ -154,11 +184,22 @@ class BridgeClient(private val scope: CoroutineScope) {
     private fun handle(text: String) {
         val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
         when (obj["type"]?.jsonPrimitive?.content) {
-            "welcome" -> _state.update {
+            "welcome" -> {
+                _state.update {
+                    it.copy(
+                        status = LinkStatus.CONNECTED,
+                        message = "Connecté",
+                        pcName = obj["name"]?.jsonPrimitive?.content ?: "",
+                    )
+                }
+                if (audioWanted) send(audioRequest(true))
+            }
+            "audio_format" -> _state.update {
                 it.copy(
-                    status = LinkStatus.CONNECTED,
-                    message = "Connecté",
-                    pcName = obj["name"]?.jsonPrimitive?.content ?: "",
+                    audioFormat = StreamFormat(
+                        rate = obj["rate"]?.jsonPrimitive?.content?.toIntOrNull() ?: 48000,
+                        channels = obj["channels"]?.jsonPrimitive?.content?.toIntOrNull() ?: 2,
+                    )
                 )
             }
             "state" -> {

@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -60,17 +61,32 @@ class AppEndToEndTest {
             pump(6_000) // laisse tourner quelques mesures
             screenshot("1-live")
 
+            // Retour casque : le son du simulateur FL arrive et se joue sur le téléphone
+            compose.onNodeWithContentDescription("Retour casque").performClick()
+            pumpUntil(15_000) {
+                compose.onAllNodesWithText("Son du PC reçu", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            pump(1_500)
+            screenshot("2-retour-casque")
+            compose.onNodeWithText("Mesurer").performClick()
+            pump(500)
+            compose.onNodeWithText("Mesurer le décalage").assertExists()
+            compose.onNodeWithText("Fermer").performClick()
+            pump(500)
+            compose.onNodeWithContentDescription("Retour casque").performClick()
+            pump(500)
+
             compose.onNodeWithText("Accords").performClick()
             pump(500)
             compose.mainClock.autoAdvance = true
             compose.waitUntil(10_000) { compose.onAllNodesWithText("Am").fetchSemanticsNodes().isNotEmpty() }
-            screenshot("2-accords")
+            screenshot("3-accords")
 
             compose.onNodeWithText("Claude").performClick()
-            screenshot("3-claude")
+            screenshot("4-claude")
 
             compose.onNodeWithText("Écrire").performClick()
-            screenshot("4-ecrire")
+            screenshot("5-ecrire")
         }
     }
 

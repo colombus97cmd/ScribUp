@@ -20,7 +20,7 @@ from pathlib import Path
 from bridge.analysis import HarmonyAnalyzer
 from bridge.protocol import FlState
 from bridge.server import BridgeServer
-from bridge.sources import DemoSource, FlMidiLink, LoopbackCapture
+from bridge.sources import AudioFanout, DemoSource, FlMidiLink, LoopbackCapture
 
 CONFIG_PATH = Path.home() / ".scribup_bridge.json"
 
@@ -82,21 +82,20 @@ def main() -> None:
 
     state = FlState()
     analyzer = HarmonyAnalyzer(samplerate=48000)
-    workers = []
+    fanout = AudioFanout(analyzer)
     if args.demo:
-        demo = DemoSource(state, analyzer)
-        demo.start()
-        workers.append(demo)
-        commander = demo
+        commander = DemoSource(state, fanout)
+        source = commander
     else:
-        link = FlMidiLink(state, args.midi_in, args.midi_out)
-        link.open()
-        commander = link
-        capture = LoopbackCapture(analyzer, samplerate=48000, device=args.audio_device)
-        capture.start()
-        workers.append(capture)
+        commander = FlMidiLink(state, args.midi_in, args.midi_out)
+        commander.open()
+        source = LoopbackCapture(fanout, device=args.audio_device)
 
-    server = BridgeServer(state, analyzer, commander, load_pin(args), latency_ms=args.latency_ms)
+    server = BridgeServer(state, analyzer, commander, load_pin(args), latency_ms=args.latency_ms,
+                          audio_rate=fanout.samplerate)
+    fanout.listeners.append(server.push_audio)  # retour casque vers le téléphone
+    source.start()
+    workers = [source]
     try:
         asyncio.run(server.run(args.host, args.port))
     except KeyboardInterrupt:

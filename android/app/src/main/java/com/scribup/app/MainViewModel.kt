@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.scribup.app.ai.ClaudeAssistant
 import com.scribup.app.ai.Prompts
+import com.scribup.app.bridge.AudioMonitor
 import com.scribup.app.bridge.BridgeClient
 import com.scribup.app.bridge.BridgeDiscovery
 import com.scribup.app.bridge.FoundBridge
@@ -26,6 +27,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val assistant = ClaudeAssistant()
     val bridge = BridgeClient(viewModelScope)
     val discovery = BridgeDiscovery(app)
+    val monitor = AudioMonitor(bridge)
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
 
@@ -123,6 +125,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun disconnectBridge() = bridge.disconnect()
 
+    // --- Retour casque ---------------------------------------------------------
+
+    private val _monitorOn = MutableStateFlow(false)
+    val monitorOn: StateFlow<Boolean> = _monitorOn.asStateFlow()
+
+    fun setMonitor(on: Boolean) {
+        if (on) {
+            monitor.setVolume(settings.value.monitorVolume)
+            monitor.start()
+        } else {
+            monitor.stop()
+        }
+        _monitorOn.value = on
+    }
+
+    fun setMonitorVolume(volume: Float) {
+        monitor.setVolume(volume)
+        updateSettings { it.copy(monitorVolume = volume) }
+    }
+
     fun useFoundBridge(found: FoundBridge) {
         updateSettings { it.copy(bridgeHost = found.host, bridgePort = found.port) }
         discovery.stop()
@@ -195,6 +217,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun clearChat() = update { it.copy(chat = emptyList()) }
 
     override fun onCleared() {
+        monitor.stop()
         discovery.stop()
         bridge.disconnect()
     }

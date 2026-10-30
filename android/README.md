@@ -19,6 +19,8 @@ Ou avec Android Studio : ouvre le dossier `android/` puis ▶ Run.
   ad-libs en rose, accords de chaque mesure, nombre de syllabes. Toucher une ligne lance FL à cette mesure
   (avec pré-roll). Boutons lecture / stop / REC. Sans PC : horloge interne au BPM du morceau.
   L'écran reste allumé.
+  Bouton 🎧 **Retour casque** : le son de FL arrive sur le téléphone (écouteurs Bluetooth), avec mesure du décalage
+  (tape en rythme) pour caler les paroles sur ce que tu entends.
 - **Claude** : chat avec le contexte du morceau (paroles, BPM, tonalité, grille). Raccourcis : rimes, ligne
   suivante, ad-libs, mixer les langues, flow, refrain, accords, topline, arrangement FL, corriger.
   Chaque réponse peut être copiée ou ajoutée au texte.

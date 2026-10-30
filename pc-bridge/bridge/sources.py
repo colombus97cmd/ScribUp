@@ -72,13 +72,32 @@ class FlMidiLink:
                 port.close()
 
 
-class LoopbackCapture(threading.Thread):
-    """Capture ce que joue le PC (WASAPI loopback sous Windows) et l'envoie à l'analyseur."""
+class AudioFanout:
+    """Distribue chaque bloc audio : analyse harmonique + retour casque vers le téléphone."""
 
-    def __init__(self, analyzer, samplerate: int = 48000, block: int = 2048, device: str | None = None):
-        super().__init__(daemon=True, name="audio-capture")
+    def __init__(self, analyzer):
         self.analyzer = analyzer
-        self.samplerate = samplerate
+        self.samplerate = analyzer.samplerate
+        self.listeners: list = []  # fonctions appelées avec un bloc stéréo float32 (frames, 2)
+
+    def push(self, block: np.ndarray) -> None:
+        block = np.asarray(block, dtype=np.float32)
+        if block.ndim == 1:
+            block = block[:, None]
+        self.analyzer.process(block.mean(axis=1))
+        if self.listeners:
+            stereo = np.repeat(block, 2, axis=1) if block.shape[1] == 1 else block[:, :2]
+            for listener in self.listeners:
+                listener(stereo)
+
+
+class LoopbackCapture(threading.Thread):
+    """Capture ce que joue le PC (WASAPI loopback sous Windows) par petits blocs de 10 ms."""
+
+    def __init__(self, fanout: AudioFanout, block: int = 480, device: str | None = None):
+        super().__init__(daemon=True, name="audio-capture")
+        self.fanout = fanout
+        self.samplerate = fanout.samplerate
         self.block = block
         self.device = device
         self._stop = threading.Event()
@@ -101,10 +120,9 @@ class LoopbackCapture(threading.Thread):
             log.error("Capture audio indisponible : %s", exc)
             return
         log.info("Capture audio : '%s'", mic.name)
-        with mic.recorder(samplerate=self.samplerate, blocksize=self.block) as rec:
+        with mic.recorder(samplerate=self.samplerate, channels=2, blocksize=self.block) as rec:
             while not self._stop.is_set():
-                data = rec.record(numframes=self.block)
-                self.analyzer.process(np.mean(data, axis=1) if data.ndim > 1 else data)
+                self.fanout.push(rec.record(numframes=self.block))
 
     def stop(self) -> None:
         self._stop.set()
@@ -115,10 +133,10 @@ class DemoSource(threading.Thread):
 
     PROGRESSION = ["Am", "F", "C", "G"]
 
-    def __init__(self, state: FlState, analyzer, bpm: float = 90.0):
+    def __init__(self, state: FlState, fanout: AudioFanout, bpm: float = 90.0):
         super().__init__(daemon=True, name="demo")
         self.state = state
-        self.analyzer = analyzer
+        self.fanout = fanout
         self.bpm = bpm
         self.playing = True
         self._ticks = 0.0
@@ -137,24 +155,25 @@ class DemoSource(threading.Thread):
         return True
 
     def run(self) -> None:
-        sr, block = self.analyzer.samplerate, 2048
+        sr, block = self.fanout.samplerate, 480  # blocs de 10 ms, comme la vraie capture
         dt = block / sr
         phase = 0.0
+        next_time = time.monotonic()
         while not self._stop.is_set():
-            start = time.monotonic()
             if self.playing:
                 self._ticks += dt * self.bpm / 60.0 * self.state.ppq
                 bar = int(self._ticks // self.state.ppb)
                 chord = self.PROGRESSION[bar % len(self.PROGRESSION)]
-                self.analyzer.process(render_chord(chord, dt, sr, noise=0.01, start_phase=phase))
+                self.fanout.push(render_chord(chord, dt, sr, start_phase=phase))
             else:
-                self.analyzer.process(np.zeros(block, dtype=np.float32))
+                self.fanout.push(np.zeros(block, dtype=np.float32))
             phase += dt
             apply_fl_update(self.state, {
                 "playing": self.playing, "recording": False, "bpm": self.bpm,
                 "ticks": int(self._ticks), "ppq": 96, "ppb": 384, "song_mode": True,
             })
-            time.sleep(max(0.0, dt - (time.monotonic() - start)))
+            next_time += dt
+            time.sleep(max(0.0, next_time - time.monotonic()))
 
     def stop(self) -> None:
         self._stop.set()

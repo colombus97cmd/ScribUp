@@ -14,6 +14,9 @@ pour que ce soit bien l'abonnement qui serve. Usage perso uniquement : ScribUp n
 
 ## Écran live sur le PC
 
+**Dans FL Studio** : mets le plugin **ScribUp Live** (voir `fl-plugin/README.md`) sur un emplacement du Mixer et ouvre
+sa fenêtre : c'est le même écran live, directement dans FL. Le navigateur reste utile pour l'iPad ou un autre écran.
+
 Ouvre **http://localhost:8765** dans le navigateur du PC (pas de PIN depuis le PC lui-même).
 Ce que tu fais sur le téléphone s'y affiche en direct, en grand : le texte que tu écris (ligne du curseur surlignée),
 le mode Live qui suit FL Studio, la conversation avec Claude (la réponse s'écrit en direct) et la grille d'accords.

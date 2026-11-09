@@ -45,23 +45,26 @@ jobs:
         with:
           workspaces: fl-plugin
       - name: Tests
-        run: cargo test -p scribup_send
+        run: cargo test -p scribup_send -p scribup_live
       - name: Compilation du VST3
-        run: cargo xtask bundle scribup_send --release
+        run: cargo xtask bundle -p scribup_send -p scribup_live --release
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Essai comme dans FL (mini-hôte VST3) — le pont doit recevoir le son
         run: |
-          pip install numpy
+          pip install numpy "websockets>=13"
           NIH_LOG="$PWD/nih.log" python ci/check_in_host.py "target/bundled/ScribUp Send.vst3" || { echo "--- journal nih-plug ---"; cat nih.log 2>/dev/null; exit 1; }
+      - name: Essai de ScribUp Live dans le mini-hôte — il doit se connecter au pont
+        run: NIH_LOG="$PWD/nih-live.log" python ci/check_live_in_host.py "target/bundled/ScribUp Live.vst3" || { echo "--- journal nih-plug ---"; cat nih-live.log 2>/dev/null; exit 1; }
       - name: Préparer le téléchargement
         run: |
           mkdir -p ../dist
           cp -r "target/bundled/ScribUp Send.vst3" ../dist/
+          cp -r "target/bundled/ScribUp Live.vst3" ../dist/
       - uses: actions/upload-artifact@v4
         with:
-          name: scribup-send-vst3
+          name: scribup-vst3
           path: dist/
           if-no-files-found: error
 

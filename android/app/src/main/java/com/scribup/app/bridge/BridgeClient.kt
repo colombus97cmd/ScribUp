@@ -12,7 +12,10 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -22,6 +25,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 @Serializable
@@ -53,6 +57,14 @@ data class AudioInfo(
 
 enum class LinkStatus { OFF, CONNECTING, CONNECTED, ERROR }
 
+/** Ce que le pont renvoie pendant une réponse de Claude Code (CLI du PC). */
+sealed interface PcClaudeEvent {
+    /** Texte complet reçu jusqu'ici. */
+    data class Delta(val text: String) : PcClaudeEvent
+    data class Done(val text: String) : PcClaudeEvent
+    data class Error(val message: String) : PcClaudeEvent
+}
+
 /** Format du son envoyé par le pont pour le retour casque. */
 data class StreamFormat(val rate: Int = 48000, val channels: Int = 2)
 
@@ -62,6 +74,8 @@ data class BridgeState(
     val pcName: String = "",
     /** Version du pont PC (2 = son de FL via le plugin ScribUp Send). */
     val bridgeVersion: Int = 0,
+    /** Claude Code est installé sur le PC : l'assistant peut passer par lui (abonnement, sans clé API). */
+    val claudeOnPc: Boolean = false,
     val fl: FlInfo = FlInfo(),
     val audio: AudioInfo = AudioInfo(),
     val grid: Map<Int, String> = emptyMap(),
@@ -75,7 +89,7 @@ data class BridgeState(
     val bridgeOutdated: Boolean get() = status == LinkStatus.CONNECTED && bridgeVersion < CURRENT_BRIDGE_VERSION
 
     companion object {
-        const val CURRENT_BRIDGE_VERSION = 2
+        const val CURRENT_BRIDGE_VERSION = 3
     }
 
     /**
@@ -113,6 +127,7 @@ class BridgeClient(private val scope: CoroutineScope) {
     private var audioWanted = false
 
     private var socket: WebSocket? = null
+    private val claudeListeners = ConcurrentHashMap<String, (PcClaudeEvent) -> Unit>()
     private var reconnectJob: Job? = null
     private var target: Triple<String, Int, String>? = null
     private var generation = 0
@@ -129,6 +144,7 @@ class BridgeClient(private val scope: CoroutineScope) {
     fun disconnect() {
         target = null
         generation++
+        failClaude("Déconnecté du PC")
         reconnectJob?.cancel()
         socket?.close(1000, "bye")
         socket = null
@@ -157,6 +173,48 @@ class BridgeClient(private val scope: CoroutineScope) {
     }
 
     private fun send(obj: JsonObject): Boolean = socket?.send(obj.toString()) ?: false
+
+    /**
+     * Fait répondre Claude Code sur le PC. [messages] = historique (rôle, texte), le dernier étant
+     * la question. [listener] est appelé sur le fil réseau. Renvoie false si le PC n'est pas joignable.
+     */
+    fun askClaude(
+        id: String,
+        system: String,
+        model: String,
+        messages: List<Pair<String, String>>,
+        listener: (PcClaudeEvent) -> Unit,
+    ): Boolean {
+        if (_state.value.status != LinkStatus.CONNECTED) return false
+        claudeListeners[id] = listener
+        val ok = send(buildJsonObject {
+            put("type", "claude")
+            put("id", id)
+            put("system", system)
+            put("model", model)
+            putJsonArray("messages") {
+                messages.forEach { (role, content) -> addJsonObject { put("role", role); put("content", content) } }
+            }
+        })
+        if (!ok) claudeListeners.remove(id)
+        return ok
+    }
+
+    fun cancelClaude(id: String) {
+        claudeListeners.remove(id)
+        send(buildJsonObject { put("type", "claude_cancel"); put("id", id) })
+    }
+
+    /** Recopie l'écran du téléphone sur l'écran live du PC. */
+    fun sendMirror(obj: JsonObject) {
+        if (_state.value.status == LinkStatus.CONNECTED) send(obj)
+    }
+
+    private fun failClaude(message: String) {
+        val pending = claudeListeners.values.toList()
+        claudeListeners.clear()
+        pending.forEach { it(PcClaudeEvent.Error(message)) }
+    }
 
     private fun open() {
         val (host, port, pin) = target ?: return
@@ -202,6 +260,7 @@ class BridgeClient(private val scope: CoroutineScope) {
                         message = "Connecté",
                         pcName = obj["name"]?.jsonPrimitive?.content ?: "",
                         bridgeVersion = obj["version"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                        claudeOnPc = obj["claude"]?.jsonPrimitive?.booleanOrNull ?: false,
                     )
                 }
                 if (audioWanted) send(audioRequest(true))
@@ -225,6 +284,17 @@ class BridgeClient(private val scope: CoroutineScope) {
                 }.toMap()
                 _state.update { it.copy(grid = bars) }
             }
+            "claude_delta", "claude_done", "claude_error" -> {
+                val id = obj["id"]?.jsonPrimitive?.content ?: return
+                val kind = obj["type"]?.jsonPrimitive?.content
+                val event = when (kind) {
+                    "claude_delta" -> PcClaudeEvent.Delta(obj["text"]?.jsonPrimitive?.content.orEmpty())
+                    "claude_done" -> PcClaudeEvent.Done(obj["text"]?.jsonPrimitive?.content.orEmpty())
+                    else -> PcClaudeEvent.Error(obj["message"]?.jsonPrimitive?.content ?: "Erreur de Claude Code sur le PC")
+                }
+                val listener = if (kind == "claude_delta") claudeListeners[id] else claudeListeners.remove(id)
+                listener?.invoke(event)
+            }
             "error" -> {
                 target = null // PIN faux : inutile de réessayer en boucle
                 _state.update {
@@ -236,6 +306,7 @@ class BridgeClient(private val scope: CoroutineScope) {
 
     private fun scheduleReconnect(reason: String) {
         socket = null
+        failClaude("Connexion au PC perdue")
         if (target == null) return
         _state.update { it.copy(status = LinkStatus.ERROR, message = "$reason — nouvelle tentative…", fl = FlInfo()) }
         reconnectJob?.cancel()

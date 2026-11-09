@@ -1,2 +1,5 @@
 [scribup_send]
 name = "ScribUp Send"
+
+[scribup_live]
+name = "ScribUp Live"

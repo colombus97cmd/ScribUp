@@ -9,6 +9,11 @@ import {
   Menu, X, CloudUpload, CheckCircle2, AlertCircle, Trash2, Edit3
 } from "lucide-react";
 import { uploadTextToIPFS } from "@/services/pinata";
+import { AGENT_PROMPTS } from "@/lib/agentPrompts";
+import { loadPcSettings, savePcSettings, usePcBridge, type PcSettings } from "@/lib/pcBridge";
+
+// « pc » = Claude Code installé sur ton PC, via le pont ScribUp (ton abonnement, pas de clé API)
+const PC_MODEL = "pc";
 
 export default function ScribUp() {
   const { isConnected, address } = useAccount();
@@ -17,7 +22,9 @@ export default function ScribUp() {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
-  const [activeModel, setActiveModel] = useState("openai/gpt-3.5-turbo");`n  const [userApiKey, setUserApiKey] = useState("");`n  const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
+  const [activeModel, setActiveModel] = useState("openai/gpt-3.5-turbo");
+  const [userApiKey, setUserApiKey] = useState("");
+  const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -26,23 +33,66 @@ export default function ScribUp() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [userProjects, setUserProjects] = useState<any[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [pcSettings, setPcSettings] = useState<PcSettings>({ host: "localhost", port: 8765, pin: "" });
+  const [cursorLine, setCursorLine] = useState(-1);
+  const [streaming, setStreaming] = useState<string | null>(null);
+  const usePc = activeModel === PC_MODEL;
+  const pc = usePcBridge(usePc, pcSettings);
 
   const agents: Record<string, {name: string, icon: any, color: string, desc: string}> = {
     novelist: { name: "Le Romancier", icon: <Book className="w-4 h-4" />, color: "#00f2ff", desc: "Narratologie & Style" },
-    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & MÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©trique" },
-    screenwriter: { name: "Le ScÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©nariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
-    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â°tymologie" }
+    lyricist: { name: "Le Parolier", icon: <Music className="w-4 h-4" />, color: "#bc13fe", desc: "Rimes & Métrique" },
+    screenwriter: { name: "Le Scénariste", icon: <Video className="w-4 h-4" />, color: "#ffd700", desc: "Structure & Dialogue" },
+    linguist: { name: "Le Linguiste", icon: <Languages className="w-4 h-4" />, color: "#00ff88", desc: "Contexte & Étymologie" }
   };
 
     useEffect(() => {
     const savedKey = localStorage.getItem("scribup_api_key");
     if (savedKey) setUserApiKey(savedKey);
+    const savedModel = localStorage.getItem("scribup_model");
+    if (savedModel) setActiveModel(savedModel);
+    setPcSettings(loadPcSettings());
   }, []);
+
+  const handleSetModel = (model: string) => {
+    setActiveModel(model);
+    localStorage.setItem("scribup_model", model);
+  };
+
+  const handlePcSettings = (patch: Partial<PcSettings>) => {
+    const next = { ...pcSettings, ...patch };
+    setPcSettings(next);
+    savePcSettings(next);
+  };
+
+  // Écran live du PC : on y recopie le texte en cours (au plus ~15 fois par seconde)
+  const mirrorRef = useRef<object | null>(null);
+  const mirrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (pc.status !== "connected") return;
+    const title = textContent.split("\n").find((l) => l.trim())?.trim().slice(0, 60) || "Brouillon";
+    mirrorRef.current = {
+      tab: "write",
+      cursorLine,
+      song: { title, lyrics: textContent, barsPerLine: 1, chordGrid: {} },
+      chat: messages.slice(-30).map((m) => ({ role: m.role === "ai" ? "assistant" : "user", text: m.text })),
+      streaming,
+    };
+    if (mirrorTimer.current) return;
+    mirrorTimer.current = setTimeout(() => {
+      mirrorTimer.current = null;
+      if (mirrorRef.current) pc.sendMirror(mirrorRef.current);
+    }, 66);
+  }, [textContent, cursorLine, messages, streaming, pc.status, pc.sendMirror]);
+
+  const trackCursor = (el: HTMLTextAreaElement) =>
+    setCursorLine(el.value.slice(0, el.selectionStart).split("\n").length - 1);
 
   const handleSetApiKey = (key: string) => {
     setUserApiKey(key);
     localStorage.setItem("scribup_api_key", key);
-  };`n  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isLoading]);
+  };
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isLoading, streaming]);
 
   const fetchProjects = async () => {
     if (!address) return;
@@ -59,8 +109,28 @@ export default function ScribUp() {
     if (!inputMessage.trim() || isLoading) return;
     const userMsg = inputMessage;
     setInputMessage("");
+    const history = messages;
     setMessages(prev => [...prev, { role: "user", text: userMsg }]);
     setIsLoading(true);
+    if (usePc) {
+      // Claude Code sur le PC : la réponse arrive au fil de l'eau
+      const context = textContent.trim() ? `Mon texte en cours :\n<texte>\n${textContent.slice(-4000)}\n</texte>\n\n` : "";
+      const turns = [
+        ...history.map((m) => ({ role: (m.role === "ai" ? "assistant" : "user") as "user" | "assistant", content: m.text })),
+        { role: "user" as const, content: context + userMsg },
+      ];
+      setStreaming("");
+      try {
+        const answer = await pc.askClaude(AGENT_PROMPTS[activeAgent as keyof typeof AGENT_PROMPTS] || AGENT_PROMPTS.novelist, turns, (t) => setStreaming(t));
+        setMessages(prev => [...prev, { role: "ai", text: answer || "Pas de réponse." }]);
+      } catch (error) {
+        setMessages(prev => [...prev, { role: "ai", text: `⚠ ${(error as Error).message}` }]);
+      } finally {
+        setStreaming(null);
+        setIsLoading(false);
+      }
+      return;
+    }
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -159,12 +229,25 @@ export default function ScribUp() {
            </div>
         </header>
         <div className="flex-1 relative">
-           <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} placeholder="Diffuser vos pensÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©es..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
+           <textarea value={textContent} onChange={(e) => { setTextContent(e.target.value); trackCursor(e.target); }} onSelect={(e) => trackCursor(e.currentTarget)} placeholder="Diffuser vos pensées..." className="w-full h-full bg-transparent p-6 text-lg font-light outline-none resize-none z-10 relative font-serif" />
         </div>
       </main>
 
       <aside className={`fixed md:relative inset-y-0 right-0 z-50 w-80 border-l border-white/5 bg-black/90 flex flex-col transform transition-transform ${isAiOpen ? "translate-x-0" : "translate-x-full"} md:translate-x-0`}>
-                           <div className="px-6 py-2 border-b border-white/5 bg-white/5 flex flex-col gap-1">
+         {usePc ? (
+         <div className="px-6 py-2 border-b border-white/5 bg-white/5 flex flex-col gap-1">
+            <span className="text-[8px] font-black uppercase text-gray-500">Pont du PC (IP · port · PIN)</span>
+            <div className="flex gap-2">
+              <input value={pcSettings.host} onChange={(e) => handlePcSettings({ host: e.target.value.trim() })} placeholder="localhost" className="bg-transparent text-[10px] outline-none text-white/70 w-full border-b border-white/10" />
+              <input value={pcSettings.port} onChange={(e) => handlePcSettings({ port: Number(e.target.value) || 8765 })} className="bg-transparent text-[10px] outline-none text-white/70 w-14 border-b border-white/10" />
+              <input type="password" value={pcSettings.pin} onChange={(e) => handlePcSettings({ pin: e.target.value.trim() })} placeholder="PIN" className="bg-transparent text-[10px] outline-none text-white/70 w-16 border-b border-white/10" />
+            </div>
+            <span className={`text-[9px] ${pc.status === "connected" ? (pc.claudeOnPc ? "text-[#00ff88]" : "text-[#ffd700]") : "text-gray-500"}`}>
+              {pc.status === "connected" ? (pc.claudeOnPc ? `${pc.message} · Claude Code prêt · écran live : http://localhost:${pcSettings.port}` : `${pc.message} · Claude Code introuvable sur le PC`) : pc.message}
+            </span>
+         </div>
+         ) : (
+         <div className="px-6 py-2 border-b border-white/5 bg-white/5 flex flex-col gap-1">
             <span className="text-[8px] font-black uppercase text-gray-500">Clé OpenRouter / OpenAI</span>
             <input 
               type="password"
@@ -173,26 +256,31 @@ export default function ScribUp() {
               placeholder="sk-or-v1-..."
               className="bg-transparent text-[8px] font-black uppercase outline-none text-white/50 hover:text-white cursor-text w-full placeholder:text-white/10"
             />
-         </div>`n         <div className="px-6 py-2 border-b border-white/5 bg-white/5 flex items-center justify-between">
-            <span className="text-[8px] font-black uppercase text-gray-500">ModÃ¨le</span>
+         </div>
+         )}
+         <div className="px-6 py-2 border-b border-white/5 bg-white/5 flex items-center justify-between">
+            <span className="text-[8px] font-black uppercase text-gray-500">Modèle</span>
             <select 
               value={activeModel} 
-              onChange={(e) => setActiveModel(e.target.value)}
+              onChange={(e) => handleSetModel(e.target.value)}
               className="bg-transparent text-[8px] font-black uppercase outline-none text-[#00f2ff] cursor-pointer"
             >
+              <option value={PC_MODEL} className="bg-black">Claude (mon PC)</option>
               <option value="openai/gpt-3.5-turbo" className="bg-black">GPT-3.5 Turbo</option>
               <option value="openai/gpt-4o" className="bg-black">GPT-4o</option>
               <option value="anthropic/claude-3.5-sonnet" className="bg-black">Claude 3.5</option>
               <option value="meta-llama/llama-3.1-70b-instruct" className="bg-black">Llama 3.1</option>
             </select>
-         </div>`n         <div className="p-6 border-b border-white/5 flex justify-between items-center">
+         </div>
+         <div className="p-6 border-b border-white/5 flex justify-between items-center">
             <h3 className="text-[10px] font-black uppercase tracking-widest">IA Mentor</h3>
             <button onClick={() => setIsAiOpen(false)} className="md:hidden"><X className="w-4 h-4" /></button>
          </div>
          <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((msg, i) => (
-              <div key={i} className={`p-3 rounded-xl text-[11px] ${msg.role === "ai" ? "bg-white/5 text-gray-300" : "bg-white text-black font-bold"}`}>{msg.text}</div>
+              <div key={i} className={`p-3 rounded-xl text-[11px] ${msg.role === "ai" ? "bg-white/5 text-gray-300" : "bg-white text-black font-bold"} whitespace-pre-wrap`}>{msg.text}</div>
             ))}
+            {streaming !== null && <div className="p-3 rounded-xl text-[11px] bg-white/5 text-gray-300 whitespace-pre-wrap">{streaming || "…"}</div>}
             <div ref={chatEndRef} />
          </div>
          <div className="p-6 border-t border-white/5 bg-black/40">
@@ -202,7 +290,7 @@ export default function ScribUp() {
             </div>
          </div>
       </aside>
-      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">SauvegardÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â©</div>}
+      {saveSuccess && <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-[#00f2ff] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase">Sauvegardé</div>}
     </div>
   );
 }

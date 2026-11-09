@@ -4,11 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.scribup.app.ai.ClaudeAssistant
+import com.scribup.app.ai.PcAssistant
 import com.scribup.app.ai.Prompts
 import com.scribup.app.bridge.AudioMonitor
 import com.scribup.app.bridge.BridgeClient
 import com.scribup.app.bridge.BridgeDiscovery
 import com.scribup.app.bridge.FoundBridge
+import com.scribup.app.bridge.LinkStatus
 import com.scribup.app.data.AppSettings
 import com.scribup.app.data.ChatMessage
 import com.scribup.app.data.SettingsStore
@@ -19,13 +21,25 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = SongRepository(app)
     private val settingsStore = SettingsStore(app)
     private val assistant = ClaudeAssistant()
     val bridge = BridgeClient(viewModelScope)
+    private val pcAssistant = PcAssistant(bridge)
     val discovery = BridgeDiscovery(app)
     val monitor = AudioMonitor(bridge)
 
@@ -48,9 +62,57 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var askJob: Job? = null
     private var requestId = 0
 
+    // --- Écran live sur le PC (miroir du téléphone) --------------------------------
+
+    private val _tab = MutableStateFlow(0)
+    private val _cursorLine = MutableStateFlow(-1)
+
+    /** Onglet affiché (0 Écrire, 1 Live, 2 Claude, 3 Accords), recopié sur l'écran du PC. */
+    fun setTab(tab: Int) { _tab.value = tab }
+
+    /** Ligne du texte où se trouve le curseur, surlignée sur l'écran du PC. */
+    fun setCursorLine(line: Int) { _cursorLine.value = line }
+
+    private fun startMirror() = viewModelScope.launch {
+        val connected = bridge.state.map { it.status == LinkStatus.CONNECTED }.distinctUntilChanged()
+        combine(_current, _tab, _cursorLine, _streaming, connected) { song, tab, cursor, streaming, online ->
+            if (online) mirrorMessage(song, tab, cursor, streaming) else null
+        }.conflate().collect { msg ->
+            if (msg != null) {
+                bridge.sendMirror(msg)
+                delay(60) // au plus ~15 envois par seconde pendant qu'on tape ou que Claude répond
+            }
+        }
+    }
+
+    private fun mirrorMessage(song: Song?, tab: Int, cursor: Int, streaming: String?): JsonObject = buildJsonObject {
+        put("type", "mirror")
+        put("source", "android")
+        put("tab", listOf("write", "live", "claude", "chords").getOrElse(tab) { "write" })
+        put("cursorLine", cursor)
+        if (song == null) {
+            put("song", JsonNull)
+            return@buildJsonObject
+        }
+        putJsonObject("song") {
+            put("id", song.id)
+            put("title", song.title)
+            put("bpm", song.bpm)
+            put("key", song.key)
+            put("lyrics", song.lyrics)
+            put("barsPerLine", song.barsPerLine)
+            putJsonObject("chordGrid") { song.chordGrid.forEach { (bar, chord) -> put(bar.toString(), chord) } }
+        }
+        putJsonArray("chat") {
+            song.chat.takeLast(30).forEach { m -> addJsonObject { put("role", m.role); put("text", m.text) } }
+        }
+        if (streaming != null) put("streaming", streaming) else put("streaming", JsonNull)
+    }
+
     init {
         viewModelScope.launch { _songs.value = repo.list() }
         settings.value.let { if (it.bridgeHost.isNotBlank()) bridge.connect(it.bridgeHost, it.bridgePort, it.bridgePin) }
+        startMirror()
     }
 
     // --- Morceaux ---------------------------------------------------------
@@ -175,9 +237,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val myRequest = ++requestId
         askJob = viewModelScope.launch {
             val history = _current.value?.takeIf { it.id == song.id }?.chat ?: return@launch
-            val result = assistant.reply(s.apiKey, s.model, history) { partial ->
-                if (myRequest == requestId) _streaming.value = partial
-            }
+            val onText: (String) -> Unit = { partial -> if (myRequest == requestId) _streaming.value = partial }
+            val result = if (s.claudeViaPc) pcAssistant.reply(s.model, history, onText)
+            else assistant.reply(s.apiKey, s.model, history, onText)
             if (myRequest != requestId) return@launch
             val answer = _streaming.value.orEmpty()
             _streaming.value = null
@@ -207,6 +269,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun cancelAsk() {
         requestId++
         assistant.cancel()
+        pcAssistant.cancel()
         askJob?.cancel()
         val song = _current.value
         val pending = song?.chat?.lastOrNull()

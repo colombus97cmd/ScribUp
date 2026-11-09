@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class AppSettings(
+    /** Claude via Claude Code sur le PC (ton abonnement, par le pont) plutôt qu'avec une clé API. */
+    val claudeViaPc: Boolean = true,
     val apiKey: String = "",
     val model: String = MODELS.first().id,
     val bridgeHost: String = "",
@@ -35,6 +37,7 @@ class SettingsStore(context: Context) {
     val settings: StateFlow<AppSettings> = _settings.asStateFlow()
 
     private fun load() = AppSettings(
+        claudeViaPc = prefs.getBoolean("claudeViaPc", true),
         apiKey = prefs.getString("apiKey", "") ?: "",
         model = prefs.getString("model", null)?.takeIf { id -> MODELS.any { it.id == id } } ?: MODELS.first().id,
         bridgeHost = prefs.getString("bridgeHost", "") ?: "",
@@ -51,6 +54,7 @@ class SettingsStore(context: Context) {
     fun update(transform: (AppSettings) -> AppSettings) {
         val s = transform(_settings.value)
         prefs.edit()
+            .putBoolean("claudeViaPc", s.claudeViaPc)
             .putString("apiKey", s.apiKey.trim())
             .putString("model", s.model)
             .putString("bridgeHost", s.bridgeHost.trim())

@@ -84,11 +84,17 @@ fun AssistantTab(vm: MainViewModel, song: Song, initialPrompt: String?, onPrompt
     }
 
     Column(Modifier.fillMaxSize()) {
-        if (settings.apiKey.isBlank()) {
-            Text(
-                "Ajoute ta clé API Claude dans les réglages (⚙) pour utiliser l'assistant.",
-                color = Bad, modifier = Modifier.padding(16.dp),
-            )
+        val setupHint = when {
+            settings.claudeViaPc && !bridge.claudeOnPc ->
+                if (bridge.status == com.scribup.app.bridge.LinkStatus.CONNECTED)
+                    "Le pont du PC ne trouve pas Claude Code (installe-le, ou mets pc-bridge à jour)."
+                else "Connecte le PC dans les réglages (⚙) : Claude répondra via Claude Code sur ton PC."
+            !settings.claudeViaPc && settings.apiKey.isBlank() ->
+                "Ajoute ta clé API Claude dans les réglages (⚙) pour utiliser l'assistant."
+            else -> null
+        }
+        if (setupHint != null) {
+            Text(setupHint, color = Bad, modifier = Modifier.padding(16.dp))
         }
 
         LazyColumn(

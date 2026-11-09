@@ -1,4 +1,24 @@
-# ScribUp Send (plugin VST3 pour FL Studio)
+# Plugins VST3 ScribUp pour FL Studio
+
+Deux plugins, dans l'artefact `scribup-vst3` des builds GitHub Actions :
+
+- **ScribUp Live** : l'écran live **dans FL Studio**. Sa fenêtre affiche en direct ce que tu fais sur le téléphone
+  (ou la version web) : le texte que tu écris avec la ligne du curseur surlignée, le mode Live qui suit la lecture
+  de FL, la conversation avec Claude (la réponse s'écrit en direct) et la grille d'accords. Plus besoin de passer
+  d'une fenêtre à l'autre.
+- **ScribUp Send** : envoie le son de FL au pont (analyse des accords, retour casque).
+
+## ScribUp Live
+
+1. Copie `ScribUp Live.vst3` dans `C:\Program Files\Common Files\VST3\`, puis FL Studio : **Options → Manage plugins → Find installed plugins**.
+2. Mets-le dans n'importe quel emplacement d'effet du Mixer (il ne touche pas au son) et ouvre sa fenêtre.
+   Tu peux l'agrandir (coin en bas à droite) et la détacher de FL (icône de la fenêtre du plugin) pour la mettre sur un autre écran.
+3. Lance le pont (`pc-bridge/start_bridge.bat`) : le plugin s'y connecte tout seul (pas de PIN, c'est le même PC).
+
+La fenêtre suit l'onglet ouvert sur le téléphone ; clique sur un onglet pour choisir toi-même (décoche « Suivre le téléphone »
+pour revenir au suivi). A− / A+ règlent la taille du texte, gardée avec le projet FL.
+
+# ScribUp Send
 
 Petit plugin à placer sur la piste **Master** de FL Studio. Il ne modifie pas le son : il en envoie une copie
 au pont ScribUp (`pc-bridge/`) sur le même PC. Le pont n'utilise alors **que le son de FL** (rien d'autre de Windows),

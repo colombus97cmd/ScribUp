@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,7 @@ fun SongScreen(vm: MainViewModel, onBack: () -> Unit, onSettings: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var pendingPrompt by rememberSaveable { mutableStateOf<String?>(null) }
     val current = song ?: return
+    LaunchedEffect(tab) { vm.setTab(tab) }
 
     Scaffold(
         topBar = {

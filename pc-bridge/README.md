@@ -1,4 +1,30 @@
-# Pont PC ScribUp (FL Studio ⇄ téléphone)
+# Pont PC ScribUp (Claude, écran live, FL Studio ⇄ téléphone)
+
+## Claude sans clé API (ton abonnement, via Claude Code sur le PC)
+
+Si **Claude Code** est installé sur le PC, le pont s'en sert pour faire répondre Claude à l'app Android
+et à la version web : c'est ton abonnement Claude qui sert, **aucune clé API, aucun crédit à l'usage**.
+
+1. Installe Claude Code sur le PC (une fois), puis dans un terminal tape `claude` et `/login` avec ton compte Claude.
+2. Lance le pont (`start_bridge.bat`) : il affiche « Claude : via Claude Code sur ce PC ».
+3. Dans l'app : Réglages → Claude → **Via Claude Code sur mon PC**. Dans la version web : modèle **Claude (mon PC)**.
+
+Le pont lance `claude -p` sans outils (simple conversation) et retire `ANTHROPIC_API_KEY` de son environnement,
+pour que ce soit bien l'abonnement qui serve. Usage perso uniquement : ScribUp ne doit pas partager ton abonnement avec d'autres personnes.
+
+## Écran live sur le PC
+
+Ouvre **http://localhost:8765** dans le navigateur du PC (pas de PIN depuis le PC lui-même).
+Ce que tu fais sur le téléphone s'y affiche en direct, en grand : le texte que tu écris (ligne du curseur surlignée),
+le mode Live qui suit FL Studio, la conversation avec Claude (la réponse s'écrit en direct) et la grille d'accords.
+La page suit l'onglet ouvert sur le téléphone (décoche « Suivre l'onglet du téléphone » pour choisir toi-même),
+A− / A+ règlent la taille du texte. Depuis un autre appareil : `http://IP-du-PC:8765/?pin=TONPIN`.
+
+La version web (site ScribUp) peut aussi s'y afficher : choisis le modèle **Claude (mon PC)**, laisse `localhost`
+comme adresse si tu utilises le site sur le PC. (Depuis le navigateur d'un téléphone, un site en https ne peut pas
+joindre `ws://` sur ton réseau : utilise l'app Android.)
+
+## FL Studio
 
 Le pont tourne sur le PC où tu utilises FL Studio. Il :
 

@@ -81,7 +81,29 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             SettingsCard("Claude") {
-                OutlinedTextField(
+                Row(
+                    Modifier.fillMaxWidth().clickable { vm.updateSettings { it.copy(claudeViaPc = true) } },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = settings.claudeViaPc, onClick = { vm.updateSettings { it.copy(claudeViaPc = true) } })
+                    Text("Via Claude Code sur mon PC (mon abonnement)")
+                }
+                Row(
+                    Modifier.fillMaxWidth().clickable { vm.updateSettings { it.copy(claudeViaPc = false) } },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = !settings.claudeViaPc, onClick = { vm.updateSettings { it.copy(claudeViaPc = false) } })
+                    Text("Avec une clé API (payée à l'usage)")
+                }
+                if (settings.claudeViaPc) Text(
+                    when {
+                        bridge.status != LinkStatus.CONNECTED -> "Connecte le PC ci-dessous : le pont fait répondre Claude Code installé sur le PC, sans clé API."
+                        !bridge.claudeOnPc -> "Le pont est connecté mais ne trouve pas Claude Code sur le PC (ou le pont n'est pas à jour)."
+                        else -> "Prêt : Claude répond via Claude Code sur ${bridge.pcName}."
+                    },
+                    style = MaterialTheme.typography.bodySmall, color = Dim,
+                )
+                if (!settings.claudeViaPc) OutlinedTextField(
                     value = settings.apiKey,
                     onValueChange = { v -> vm.updateSettings { it.copy(apiKey = v) } },
                     label = { Text("Clé API (sk-ant-…)") },
@@ -94,7 +116,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text(
+                if (!settings.claudeViaPc) Text(
                     "Crée une clé sur console.anthropic.com. Elle reste sur ce téléphone, dans les données privées de l'app.",
                     style = MaterialTheme.typography.bodySmall, color = Dim,
                 )
@@ -116,9 +138,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 )
             }
 
-            SettingsCard("PC / FL Studio") {
+            SettingsCard("PC (Claude, écran live, FL Studio)") {
                 Text(
-                    "Lance pc-bridge/scribup_bridge.py sur le PC : il affiche son IP et le PIN. Téléphone et PC doivent être sur le même Wi-Fi.",
+                    "Lance pc-bridge/start_bridge.bat sur le PC : il affiche son IP et le PIN. Téléphone et PC doivent être sur le même Wi-Fi. " +
+                        "Sur le PC, ouvre http://localhost:${settings.bridgePort} : l'écran du téléphone s'y affiche en direct.",
                     style = MaterialTheme.typography.bodySmall, color = Dim,
                 )
                 if (found.isNotEmpty() || searching) {

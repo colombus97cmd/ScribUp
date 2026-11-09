@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScribUp Live</title>
+<style>
+  :root {
+    --bg: #0e0e12; --s1: #17171e; --s2: #22222c; --line: #3a3a48;
+    --text: #ededf2; --dim: #8a8a99; --soft: #b9b9c6;
+    --accent: #ff4d8d; --accent2: #7c5cff; --good: #3ddc97; --warn: #ffb547; --bad: #ff5c5c;
+    --size: 34px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--s1);
+    border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 20px; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 99px; background: var(--s2); color: var(--soft); white-space: nowrap; }
+  .pill.ok { color: var(--good); } .pill.bad { color: var(--bad); }
+  .pos { font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 700; }
+  .chord { color: var(--accent2); font-weight: 800; font-size: 22px; min-width: 60px; }
+  nav { display: flex; gap: 6px; padding: 8px 20px; background: var(--bg); border-bottom: 1px solid var(--s2); align-items: center; flex-wrap: wrap; }
+  nav button { background: var(--s2); color: var(--soft); border: 0; border-radius: 10px; padding: 7px 14px; font-size: 14px; cursor: pointer; }
+  nav button.on { background: var(--accent); color: #fff; }
+  nav .sep { flex: 1; }
+  nav label { color: var(--dim); font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  main { flex: 1; overflow-y: auto; padding: 24px 6vw 40vh; scroll-behavior: smooth; }
+  .empty { color: var(--dim); text-align: center; margin-top: 20vh; font-size: 20px; line-height: 1.6; }
+
+  /* Écrire */
+  .src { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: var(--size); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .src div { padding: 0 12px; border-radius: 10px; min-height: 1.45em; }
+  .src .cur { background: var(--s2); box-shadow: inset 4px 0 0 var(--accent); }
+  .src .sec { color: var(--accent2); font-weight: 700; }
+  .src .com { color: var(--dim); font-style: italic; }
+  .src .mk { color: var(--warn); }
+  .adlib { color: var(--accent); }
+
+  /* Live */
+  .live .hdr { color: var(--accent2); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: calc(var(--size) * .45); margin: 1.4em 0 .4em; }
+  .live .ln { display: flex; gap: 18px; align-items: baseline; padding: 6px 12px; border-radius: 12px; font-size: var(--size); line-height: 1.3; color: var(--soft); opacity: .55; transition: opacity .15s, background .15s; }
+  .live .ln.past { opacity: .3; }
+  .live .ln.cur { opacity: 1; color: var(--text); background: var(--s1); font-weight: 700; }
+  .live .bar { font-size: calc(var(--size) * .4); color: var(--dim); min-width: 3.2em; font-variant-numeric: tabular-nums; }
+  .live .ch { font-size: calc(var(--size) * .45); color: var(--accent2); font-weight: 800; min-width: 3em; }
+  .live .sub { display: block; font-size: calc(var(--size) * .6); }
+  .live .prog { height: 4px; background: var(--accent); border-radius: 2px; margin-top: 4px; }
+
+  /* Claude */
+  .chat { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; font-size: calc(var(--size) * .6); line-height: 1.5; }
+  .msg { padding: 14px 18px; border-radius: 16px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { background: var(--accent2); color: #fff; align-self: flex-end; max-width: 80%; }
+  .msg.assistant { background: var(--s1); }
+  .msg.typing::after { content: "▍"; color: var(--accent); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Accords */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .cell { background: var(--s1); border-radius: 12px; padding: 12px; }
+  .cell.cur { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cell small { color: var(--dim); display: block; }
+  .cell b { color: var(--accent2); font-size: 24px; }
+
+  dialog { background: var(--s1); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  dialog input { font-size: 22px; padding: 8px; width: 10ch; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; }
+  dialog button { font-size: 16px; padding: 8px 16px; margin-left: 8px; background: var(--accent); color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">ScribUp Live</h1>
+  <span class="chord" id="chord"></span>
+  <span class="pos" id="pos"></span>
+  <span class="pill" id="meta"></span>
+  <span class="pill" id="phone">Téléphone : —</span>
+  <span class="pill" id="link">Connexion…</span>
+</header>
+<nav>
+  <button data-view="write">Écrire</button>
+  <button data-view="live">Live</button>
+  <button data-view="claude">Claude</button>
+  <button data-view="chords">Accords</button>
+  <span class="sep"></span>
+  <label><input type="checkbox" id="follow" checked> Suivre l'onglet du téléphone</label>
+  <button id="smaller" title="Texte plus petit">A−</button>
+  <button id="bigger" title="Texte plus grand">A+</button>
+</nav>
+<main id="main"><div class="empty">En attente du téléphone…<br>Ouvre un morceau dans ScribUp : il s'affichera ici en direct.</div></main>
+<dialog id="pinDialog"><form method="dialog">PIN du pont : <input id="pinInput" inputmode="numeric" autocomplete="off"><button>OK</button></form></dialog>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+let mirror = null;          // dernier écran envoyé par le téléphone
+let fl = null, receivedAt = 0, grid = {};
+let streaming = null;       // réponse de Claude en cours (texte)
+let answered = null;        // réponse terminée, affichée jusqu'au prochain écran du téléphone
+let view = store.get("view", "write");
+let follow = store.get("follow", "1") === "1";
+let size = Number(store.get("size", "34")) || 34;
+let lastRendered = "";
+let lastFocus = null;
+
+// ---------- Paroles : même syntaxe que l'app (LyricsParser.kt) ----------
+const sectionRe = /^\[(.+?)(?:\s*@\s*(\d+(?:[.,]\d+)?))?\s*]$/;
+const barPrefixRe = /^@\s*(\d+(?:[.,]\d+)?)\s+/;
+const durationRe = /\s+~\s*(\d+(?:[.,]\d+)?)$/;
+const toBars = (s) => Number(s.replace(",", "."));
+
+function splitSegments(text) {
+  const out = []; let buf = "", depth = 0;
+  for (const c of text) {
+    if (c === "(") { if (depth === 0 && buf) { out.push({ text: buf, adlib: false }); buf = ""; } depth++; buf += c; }
+    else if (c === ")" && depth > 0) { buf += c; depth--; if (depth === 0) { out.push({ text: buf, adlib: true }); buf = ""; } }
+    else buf += c;
+  }
+  if (buf) out.push({ text: buf, adlib: depth > 0 });
+  return out;
+}
+
+function parse(text, barsPerLine) {
+  const lines = [], sections = []; let cursor = 1, section = null;
+  text.split("\n").forEach((rawLine, src) => {
+    let raw = rawLine.trim();
+    if (!raw || raw.startsWith("//")) return;
+    const sm = raw.match(sectionRe);
+    if (sm) { section = sm[1].trim(); if (sm[2]) cursor = toBars(sm[2]); sections.push({ name: section, start: cursor, firstLine: lines.length }); return; }
+    let start = null, bars = null, m;
+    if ((m = raw.match(barPrefixRe))) { start = toBars(m[1]); raw = raw.slice(m[0].length); }
+    if ((m = raw.match(durationRe))) { bars = toBars(m[1]); raw = raw.slice(0, m.index); }
+    raw = raw.trim(); if (!raw) return;
+    const segments = splitSegments(raw);
+    const onlyAdlib = segments.every((s) => s.adlib || !s.text.trim());
+    if (onlyAdlib && bars === null && start === null && lines.length) { lines[lines.length - 1].adlibs.push(raw); return; }
+    const st = start ?? cursor, b = bars ?? barsPerLine;
+    lines.push({ index: lines.length, section, segments, start: st, bars: b, adlibs: [], src });
+    cursor = st + b;
+  });
+  return { lines, sections };
+}
+
+// ---------- Position FL (extrapolée avec le tempo, comme dans l'app) ----------
+function position() {
+  if (!fl || !fl.connected) return null;
+  let pos = fl.bar + ((fl.beat - 1) + fl.beatFrac) / fl.beatsPerBar;
+  if (fl.playing && receivedAt) {
+    const el = Math.max(-500, Math.min(500, performance.now() - receivedAt)) / 1000;
+    pos += el * fl.bpm / 60 / fl.beatsPerBar;
+  }
+  return pos;
+}
+
+// ---------- Rendu ----------
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const segHtml = (segs) => segs.map((s) => s.adlib ? `<span class="adlib">${esc(s.text)}</span>` : esc(s.text)).join("");
+const songGrid = () => (Object.keys(grid).length ? grid : (mirror?.song?.chordGrid || {}));
+
+function srcLineHtml(line) {
+  const t = line.trim();
+  if (!t) return "&nbsp;";
+  if (t.startsWith("//")) return `<span class="com">${esc(line)}</span>`;
+  if (sectionRe.test(t)) return `<span class="sec">${esc(line)}</span>`;
+  let pre = "", rest = line, post = "", m;
+  if ((m = rest.match(/^(\s*@\s*\d+(?:[.,]\d+)?\s+)/))) { pre = `<span class="mk">${esc(m[1])}</span>`; rest = rest.slice(m[1].length); }
+  if ((m = rest.match(/(\s~\s*\d+(?:[.,]\d+)?\s*)$/))) { post = `<span class="mk">${esc(m[1])}</span>`; rest = rest.slice(0, m.index); }
+  return pre + segHtml(splitSegments(rest)) + post;
+}
+
+function renderWrite() {
+  const song = mirror?.song; if (!song) return empty();
+  const cur = mirror.cursorLine ?? -1;
+  const html = song.lyrics.split("\n").map((l, i) => `<div class="${i === cur ? "cur" : ""}" data-i="${i}">${srcLineHtml(l)}</div>`).join("");
+  return { html: `<div class="src">${html}</div>`, focus: `[data-i="${cur}"]` };
+}
+
+function renderLive() {
+  const song = mirror?.song; if (!song) return empty();
+  const parsed = parse(song.lyrics, song.barsPerLine || 1);
+  const pos = position();
+  const g = songGrid();
+  let current = -1;
+  if (pos !== null) for (const l of parsed.lines) { if (l.start <= pos + 1e-6) current = l.index; else break; }
+  if (current < 0 && pos === null && mirror.cursorLine >= 0) {
+    // FL arrêté / absent : on suit la ligne en cours d'écriture
+    for (const l of parsed.lines) if (l.src <= mirror.cursorLine) current = l.index;
+  }
+  let html = "";
+  for (const l of parsed.lines) {
+    const sec = parsed.sections.find((s) => s.firstLine === l.index);
+    if (sec) html += `<div class="hdr">${esc(sec.name)}</div>`;
+    const bar = Math.floor(l.start);
+    const ch = g[bar] || g[String(bar)] || "";
+    const cls = l.index === current ? "cur" : (l.index < current ? "past" : "");
+    const prog = l.index === current && pos !== null ? Math.max(0, Math.min(1, (pos - l.start) / l.bars)) : null;
+    html += `<div class="ln ${cls}" data-l="${l.index}"><span class="bar">m.${bar}</span><span class="ch">${esc(ch)}</span>
+      <span>${segHtml(l.segments)}${l.adlibs.map((a) => `<span class="sub adlib">${esc(a)}</span>`).join("")}
+      ${prog !== null ? `<div class="prog" style="width:${(prog * 100).toFixed(0)}%"></div>` : ""}</span></div>`;
+  }
+  if (!parsed.lines.length) return empty("Pas encore de paroles.");
+  return { html: `<div class="live">${html}</div>`, focus: `[data-l="${current}"]` };
+}
+
+function renderClaude() {
+  const chat = [...(mirror?.chat || [])];
+  if (answered && chat[chat.length - 1]?.text !== answered) chat.push({ role: "assistant", text: answered });
+  const live = streaming ?? mirror?.streaming ?? null;
+  if (!chat.length && live === null) return empty("Pas encore de conversation avec Claude pour ce morceau.");
+  let html = chat.map((m) => `<div class="msg ${m.role === "user" ? "user" : "assistant"}">${esc(m.text)}</div>`).join("");
+  if (live !== null) html += `<div class="msg assistant typing" id="typing">${esc(live)}</div>`;
+  return { html: `<div class="chat">${html}</div>`, focus: live !== null ? "#typing" : ".msg:last-child", end: true };
+}
+
+function renderChords() {
+  const g = songGrid();
+  const bars = Object.keys(g).map(Number).sort((a, b) => a - b);
+  if (!bars.length) return empty("Pas encore de grille d'accords (lance la lecture dans FL Studio).");
+  const pos = position(); const cur = pos === null ? -1 : Math.floor(pos);
+  const html = bars.map((b) => `<div class="cell ${b === cur ? "cur" : ""}" data-b="${b}"><small>mesure ${b}</small><b>${esc(g[b] || g[String(b)])}</b></div>`).join("");
+  return { html: `<div class="grid">${html}</div>`, focus: `[data-b="${cur}"]` };
+}
+
+function empty(text) {
+  return { html: `<div class="empty">${text ? esc(text) : "En attente du téléphone…<br>Ouvre un morceau dans ScribUp : il s'affichera ici en direct."}</div>` };
+}
+
+const views = { write: renderWrite, live: renderLive, claude: renderClaude, chords: renderChords };
+
+function render() {
+  const v = follow && mirror?.tab && views[mirror.tab] ? mirror.tab : view;
+  document.querySelectorAll("nav button[data-view]").forEach((b) => b.classList.toggle("on", b.dataset.view === v));
+  const song = mirror?.song;
+  $("title").textContent = song ? (song.title || "Sans titre") : "ScribUp Live";
+  $("meta").textContent = song ? [song.bpm ? `${song.bpm} BPM` : "", song.key].filter(Boolean).join(" · ") : "";
+  $("meta").style.display = song ? "" : "none";
+  const pos = position();
+  $("pos").textContent = pos === null ? "" : `${fl.playing ? "▶" : "■"} ${Math.floor(pos)}.${Math.min(fl.beatsPerBar, Math.floor((pos % 1) * fl.beatsPerBar) + 1)}`;
+
+  const out = views[v]();
+  if (out.html !== lastRendered) {
+    const main = $("main");
+    const atBottom = main.scrollHeight - main.scrollTop - main.clientHeight < 80;
+    main.innerHTML = out.html; lastRendered = out.html;
+    const el = out.focus && main.querySelector(out.focus);
+    if (out.end) { if (el && (atBottom || out.focus !== lastFocus)) el.scrollIntoView({ block: "end" }); }
+    else if (el && out.focus !== lastFocus) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    lastFocus = out.focus;
+  }
+}
+
+function setSize(px) {
+  size = Math.max(16, Math.min(96, px)); store.set("size", String(size));
+  document.documentElement.style.setProperty("--size", size + "px"); lastRendered = ""; lastFocus = null; render();
+}
+
+document.querySelectorAll("nav button[data-view]").forEach((b) => b.onclick = () => {
+  view = b.dataset.view; store.set("view", view);
+  follow = false; $("follow").checked = false; store.set("follow", "0"); render();
+});
+$("follow").checked = follow;
+$("follow").onchange = (e) => { follow = e.target.checked; store.set("follow", follow ? "1" : "0"); render(); };
+$("smaller").onclick = () => setSize(size - 4);
+$("bigger").onclick = () => setSize(size + 4);
+setSize(size);
+
+// ---------- Connexion au pont ----------
+let lastMirrorAt = 0;
+function connect() {
+  const params = new URLSearchParams(location.search);
+  const pin = params.get("pin") || store.get("pin", "");
+  const ws = new WebSocket(`ws://${location.host}/`);
+  ws.onopen = () => ws.send(JSON.stringify({ type: "hello", client: "display", pin }));
+  ws.onmessage = (e) => {
+    if (typeof e.data !== "string") return;
+    const msg = JSON.parse(e.data);
+    switch (msg.type) {
+      case "welcome": $("link").textContent = `PC : ${msg.name}`; $("link").className = "pill ok"; break;
+      case "error":
+        $("link").textContent = msg.message; $("link").className = "pill bad";
+        $("pinDialog").showModal();
+        $("pinDialog").onclose = () => { store.set("pin", $("pinInput").value.trim()); connect(); };
+        ws.onclose = null; return;
+      case "state": fl = msg.fl; receivedAt = performance.now(); break;
+      case "grid": grid = msg.bars || {}; break;
+      case "mirror": mirror = msg; lastMirrorAt = Date.now(); answered = null; if (msg.streaming == null) streaming = null; break;
+      case "claude_delta": streaming = msg.text; break;
+      case "claude_done": streaming = null; answered = msg.text; break;
+    }
+    render();
+  };
+  ws.onclose = () => { $("link").textContent = "Pont déconnecté — nouvelle tentative…"; $("link").className = "pill bad"; setTimeout(connect, 2000); };
+}
+connect();
+
+setInterval(() => {
+  const age = Date.now() - lastMirrorAt;
+  const el = $("phone");
+  if (!lastMirrorAt) { el.textContent = "Téléphone : —"; el.className = "pill"; }
+  else { el.textContent = age < 15000 ? `${mirror.source === "web" ? "Web" : "Téléphone"} : en direct` : "Téléphone : silencieux"; el.className = age < 15000 ? "pill ok" : "pill"; }
+}, 1000);
+
+// Animation de la position pendant la lecture
+(function tick() { if (fl && fl.playing) render(); requestAnimationFrame(tick); })();
+</script>
+</body>
+</html>

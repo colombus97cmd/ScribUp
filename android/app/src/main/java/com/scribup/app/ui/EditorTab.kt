@@ -77,6 +77,7 @@ fun EditorTab(vm: MainViewModel, song: Song) {
 
     val parsed = remember(song.lyrics, song.barsPerLine) { LyricsParser.parse(song.lyrics, song.barsPerLine) }
     val cursorLine = field.text.take(field.selection.start).count { it == '\n' }
+    LaunchedEffect(cursorLine) { vm.setCursorLine(cursorLine) }
     val lineInfo = parsed.lines.lastOrNull { it.sourceLine <= cursorLine }?.takeIf { it.sourceLine == cursorLine }
 
     Column(Modifier.fillMaxSize()) {

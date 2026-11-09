@@ -47,7 +47,7 @@ jobs:
       - name: Tests
         run: cargo test -p scribup_send -p scribup_live
       - name: Compilation du VST3
-        run: cargo xtask bundle scribup_send scribup_live --release
+        run: cargo xtask bundle -p scribup_send -p scribup_live --release
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
